@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marchiver Extension Test Page</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #1a73e8;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #3c4043;
+      margin-top: 30px;
+    }
+    .test-section {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .test-button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+    .test-button:hover {
+      background-color: #1765cc;
+    }
+    .result {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #e6f4ea;
+      color: #137333;
+    }
+    .error {
+      background-color: #fce8e6;
+      color: #c5221f;
+    }
+    code {
+      background-color: #f1f3f4;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .instructions {
+      background-color: #e8f0fe;
+      border-left: 4px solid #1a73e8;
+      padding: 10px 20px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Marchiver Extension Test Page</h1>
+  
+  <div class="instructions">
+    <p>This page helps you test if your Marchiver Chrome extension is working correctly. Make sure the extension is installed and the backend server is running before performing these tests.</p>
+  </div>
+  
+  <div class="test-section">
+    <h2>Test 1: Save Current Page</h2>
+    <p>This test will attempt to save this page to your Marchiver archive.</p>
+    <button id="savePageBtn" class="test-button">Save This Page</button>
+    <div id="savePageResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Test 2: Summarize Current Page</h2>
+    <p>This test will attempt to summarize this page and save it to your Marchiver archive.</p>
+    <button id="summarizeBtn" class="test-button">Summarize This Page</button>
+    <div id="summarizeResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Test 3: Search Archive</h2>
+    <p>This test will search your Marchiver archive for the term "test".</p>
+    <button id="searchBtn" class="test-button">Search for "test"</button>
+    <div id="searchResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Test 4: Check API Connection</h2>
+    <p>This test will check if the extension can connect to the Marchiver API.</p>
+    <button id="apiCheckBtn" class="test-button">Check API Connection</button>
+    <div id="apiCheckResult" class="result"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Test 5: Keyboard Shortcuts</h2>
+    <p>Try the following keyboard shortcuts:</p>
+    <ul>
+      <li><code>Alt+S</code> - Save the current page</li>
+      <li><code>Alt+M</code> - Summarize the current page</li>
+    </ul>
+    <p>If the shortcuts work, you should see a notification in the top-right corner of the page.</p>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Test 1: Save Current Page
+      document.getElementById('savePageBtn').addEventListener('click', function() {
+        const resultElement = document.getElementById('savePageResult');
+        resultElement.style.display = 'block';
+        
+        try {
+          chrome.runtime.sendMessage(
+            { action: 'savePage', url: window.location.href, summarize: false },
+            function(response) {
+              if (response && response.success) {
+                resultElement.className = 'result success';
+                resultElement.textContent = 'Success! Page saved to Marchiver.';
+              } else {
+                resultElement.className = 'result error';
+                resultElement.textContent = 'Error: ' + (response ? response.error : 'Unknown error');
+              }
+            }
+          );
+        } catch (error) {
+          resultElement.className = 'result error';
+          resultElement.textContent = 'Error: ' + error.message + '. Make sure the extension is installed.';
+        }
+      });
+      
+      // Test 2: Summarize Current Page
+      document.getElementById('summarizeBtn').addEventListener('click', function() {
+        const resultElement = document.getElementById('summarizeResult');
+        resultElement.style.display = 'block';
+        
+        try {
+          chrome.runtime.sendMessage(
+            { action: 'summarizePage', url: window.location.href },
+            function(response) {
+              if (response && response.success) {
+                resultElement.className = 'result success';
+                resultElement.textContent = 'Success! Page summarized and saved to Marchiver.';
+              } else {
+                resultElement.className = 'result error';
+                resultElement.textContent = 'Error: ' + (response ? response.error : 'Unknown error');
+              }
+            }
+          );
+        } catch (error) {
+          resultElement.className = 'result error';
+          resultElement.textContent = 'Error: ' + error.message + '. Make sure the extension is installed.';
+        }
+      });
+      
+      // Test 3: Search Archive
+      document.getElementById('searchBtn').addEventListener('click', function() {
+        const resultElement = document.getElementById('searchResult');
+        resultElement.style.display = 'block';
+        
+        try {
+          chrome.runtime.sendMessage(
+            { action: 'search', query: 'test', semantic: true, limit: 5 },
+            function(response) {
+              if (response && response.success) {
+                resultElement.className = 'result success';
+                const count = response.results ? response.results.length : 0;
+                resultElement.textContent = `Success! Found ${count} results for "test".`;
+              } else {
+                resultElement.className = 'result error';
+                resultElement.textContent = 'Error: ' + (response ? response.error : 'Unknown error');
+              }
+            }
+          );
+        } catch (error) {
+          resultElement.className = 'result error';
+          resultElement.textContent = 'Error: ' + error.message + '. Make sure the extension is installed.';
+        }
+      });
+      
+      // Test 4: Check API Connection
+      document.getElementById('apiCheckBtn').addEventListener('click', function() {
+        const resultElement = document.getElementById('apiCheckResult');
+        resultElement.style.display = 'block';
+        
+        try {
+          // We'll use the extension's storage to get the API endpoint
+          chrome.storage.sync.get({
+            apiEndpoint: 'http://localhost:8000/api'
+          }, function(items) {
+            const apiUrl = items.apiEndpoint + '/health';
+            
+            // Create a temporary element to display the API URL
+            const apiUrlElement = document.createElement('div');
+            apiUrlElement.textContent = 'Checking API at: ' + apiUrl;
+            resultElement.appendChild(apiUrlElement);
+            
+            // Make a fetch request to the API
+            fetch(apiUrl)
+              .then(response => {
+                if (response.ok) {
+                  return response.json();
+                }
+                throw new Error('API returned status ' + response.status);
+              })
+              .then(data => {
+                resultElement.className = 'result success';
+                resultElement.textContent = 'Success! API connection established. Response: ' + JSON.stringify(data);
+              })
+              .catch(error => {
+                resultElement.className = 'result error';
+                resultElement.textContent = 'Error: ' + error.message;
+              });
+          });
+        } catch (error) {
+          resultElement.className = 'result error';
+          resultElement.textContent = 'Error: ' + error.message + '. Make sure the extension is installed.';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

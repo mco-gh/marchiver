@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marchiver</title>
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="images/icon48.png" alt="Marchiver Logo" class="logo">
+      <h1>Marchiver</h1>
+    </header>
+    
+    <div class="actions">
+      <button id="savePageBtn" class="btn primary">
+        <span class="icon">📥</span>
+        Save Current Page
+      </button>
+      
+      <button id="summarizeBtn" class="btn secondary">
+        <span class="icon">📝</span>
+        Summarize & Save
+      </button>
+    </div>
+    
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search your archive...">
+      <div class="search-options">
+        <label>
+          <input type="checkbox" id="semanticSearch" checked>
+          Semantic Search
+        </label>
+      </div>
+      <button id="searchBtn" class="btn search">Search</button>
+    </div>
+    
+    <div id="results" class="results">
+      <!-- Search results will be displayed here -->
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <footer>
+      <button id="optionsBtn" class="btn text">Settings</button>
+    </footer>
+  </div>
+  
+  <script src="js/popup.js"></script>
+</body>
+</html>
