@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import datetime
 import uuid
 
@@ -9,7 +9,7 @@ class DocumentBase(BaseModel):
     title: str
     url: Optional[str] = None
     summary: Optional[str] = None
-    metadata: Dict[str, any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list)
     category: Optional[str] = None
 
@@ -26,7 +26,7 @@ class DocumentUpdate(BaseModel):
     title: Optional[str] = None
     url: Optional[str] = None
     summary: Optional[str] = None
-    metadata: Optional[Dict[str, any]] = None
+    metadata: Optional[Dict[str, Any]] = None
     tags: Optional[List[str]] = None
     category: Optional[str] = None
     author: Optional[str] = None
@@ -44,3 +44,4 @@ class Document(DocumentBase):
 
     class Config:
         orm_mode = True
+        arbitrary_types_allowed = True
