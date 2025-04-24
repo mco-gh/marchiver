@@ -2,7 +2,7 @@
 
 A personal knowledge archiving and retrieval system, inspired by the Memex, that allows users to save, organize, and intelligently access diverse digital information.
 
-![Marchiver Logo](marchiver_logo.jpg)
+<img src="marchiver_logo.jpg" alt="Marchiver Logo" width="40%" />
 
 ## Architecture Documentation
 
