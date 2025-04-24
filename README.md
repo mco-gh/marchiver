@@ -31,3 +31,49 @@ The system consists of two main components:
 - **Summarization**: Automatically summarize content using Google Gemini Pro 2.5
 - **Data Management**: Edit metadata, track versions, and manage stored content
 - **Chrome Extension**: Easily save and search content from your browser
+
+## Installation and Usage
+
+### 1. Set up the environment
+First, create an environment file:
+```
+cp .env.sample .env
+```
+
+Edit the `.env` file to include your Google Cloud credentials. For testing purposes, you can use the dummy credentials:
+```
+GOOGLE_APPLICATION_CREDENTIALS=dummy-credentials.json
+```
+
+### 2. Start the backend
+You have two options:
+
+#### Option A: Run the real backend
+This requires valid Google Cloud credentials:
+```
+./start_backend.sh
+```
+
+#### Option B: Run the mock backend (for testing)
+This uses mock services and doesn't require real credentials:
+```
+./start_mock_backend.sh
+```
+
+The script will prompt you to install dependencies if needed. The backend server will run on http://localhost:8000 by default.
+
+### 3. Test the frontend
+Run the frontend test script:
+```
+./test_frontend.sh
+```
+
+This will open `frontend/test_extension.html` in your default browser, which provides a testing interface for the extension.
+
+### 4. Chrome Extension
+For full functionality, you need to load the extension into Chrome:
+
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode" (toggle in the top-right corner)
+3. Click "Load unpacked" and select the `frontend` directory from this project
+4. The Marchiver extension should now appear in your Chrome extensions
