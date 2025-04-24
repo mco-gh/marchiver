@@ -45,39 +45,7 @@ read -p "Do you want to install/update dependencies? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Installing dependencies..."
-    # Install packages one by one to avoid dependency issues
-    uv run python3 -m pip install --upgrade pip
-    
-    # Install core packages needed for the server to run
-    echo "Installing uvicorn..."
-    uv run python3 -m pip install uvicorn==0.23.2
-    
-    echo "Installing starlette (FastAPI dependency)..."
-    uv run python3 -m pip install starlette==0.27.0
-    
-    echo "Installing typing-extensions (FastAPI dependency)..."
-    uv run python3 -m pip install typing-extensions==4.8.0
-    
-    echo "Installing anyio (FastAPI dependency)..."
-    uv run python3 -m pip install anyio==3.7.1
-    
-    echo "Installing pydantic (FastAPI dependency)..."
-    uv run python3 -m pip install pydantic==1.10.13
-    
-    echo "Installing fastapi..."
-    uv run python3 -m pip install fastapi==0.104.1 --no-deps
-    
-    echo "Installing python-dotenv..."
-    uv run python3 -m pip install python-dotenv==1.0.0
-    
-    echo "Installing requests..."
-    uv run python3 -m pip install requests==2.31.0
-    
-    echo "Installing other dependencies..."
-    uv run python3 -m pip install httpx==0.25.0 beautifulsoup4==4.12.2
-    
-    # Skip problematic packages: pydantic, google-cloud-aiplatform, lxml
-    echo "Note: Some packages were skipped due to compatibility issues."
+    uv run python3 -m pip install --upgrade pip -r backend/requirements.txt
 fi
 
 # Check for environment variables
