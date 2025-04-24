@@ -45,6 +45,39 @@ Edit the `.env` file to include your Google Cloud credentials. For testing purpo
 GOOGLE_APPLICATION_CREDENTIALS=dummy-credentials.json
 ```
 
+#### Where to get environment variable values
+
+The `.env` file requires several configuration values:
+
+1. **Google Cloud Configuration**
+   - `GOOGLE_APPLICATION_CREDENTIALS`: Path to your Google Cloud service account key file
+     - Create in the [Google Cloud Console](https://console.cloud.google.com/) → IAM & Admin → Service Accounts
+     - Create a new service account or use an existing one
+     - Create a key (JSON format) and download it
+     - Place the file in your project and reference its path
+   - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud project ID
+     - Found in the Google Cloud Console dashboard
+   - `GOOGLE_CLOUD_REGION`: The Google Cloud region to use (e.g., `us-central1`)
+   - `GOOGLE_API_KEY`: API key for Google services
+     - Create in Google Cloud Console → APIs & Services → Credentials
+
+2. **Vertex AI Configuration**
+   - `VERTEX_AI_INDEX_ENDPOINT`: Your Vertex AI index endpoint
+   - `VERTEX_AI_INDEX`: Your Vertex AI index name
+   - `VERTEX_AI_EMBEDDING_ENDPOINT`: Your Vertex AI embedding endpoint
+     - These are created in Google Cloud Console → Vertex AI → Vector Search
+
+3. **Embedding Model Configuration**
+   - `EMBEDDING_MODEL`: The embedding model to use (default: `models/embedding-001`)
+   - `SUMMARIZATION_MODEL`: The summarization model to use (default: `gemini-pro-2.5`)
+
+4. **Server Configuration**
+   - `HOST`: The host to bind the server to (default: `0.0.0.0`)
+   - `PORT`: The port to run the server on (default: `8000`)
+   - `DEBUG`: Whether to run in debug mode (default: `true`)
+
+For testing with the mock backend (`start_mock_backend.sh`), you don't need real values for these variables as the mock services use simulated responses.
+
 ### 2. Start the backend
 You have two options:
 
