@@ -28,7 +28,7 @@ read -p "Do you want to install/update dependencies? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Installing dependencies..."
-    pip install -r backend/requirements.txt
+    uv pip install -r backend/requirements.txt
 fi
 
 # Check for environment variables

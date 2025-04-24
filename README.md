@@ -34,7 +34,11 @@ The system consists of two main components:
 
 ## Installation and Usage
 
-### 1. Set up the environment
+### 1. Prerequisites
+
+This project uses `uv` for Python package management. If you don't have `uv` installed, you can install it following the instructions at [https://github.com/astral-sh/uv](https://github.com/astral-sh/uv).
+
+### 2. Set up the environment
 First, create an environment file:
 ```
 cp .env.sample .env
@@ -78,7 +82,7 @@ The `.env` file requires several configuration values:
 
 For testing with the mock backend (`start_mock_backend.sh`), you don't need real values for these variables as the mock services use simulated responses.
 
-### 2. Start the backend
+### 3. Start the backend
 You have two options:
 
 #### Option A: Run the real backend
@@ -95,7 +99,7 @@ This uses mock services and doesn't require real credentials:
 
 The script will prompt you to install dependencies if needed. The backend server will run on http://localhost:8000 by default.
 
-### 3. Test the frontend
+### 4. Test the frontend
 Run the frontend test script:
 ```
 ./test_frontend.sh
@@ -103,7 +107,7 @@ Run the frontend test script:
 
 This will open `frontend/test_extension.html` in your default browser, which provides a testing interface for the extension.
 
-### 4. Chrome Extension
+### 5. Chrome Extension
 For full functionality, you need to load the extension into Chrome:
 
 1. Open Chrome and navigate to `chrome://extensions/`
