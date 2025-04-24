@@ -5,7 +5,7 @@
 echo "Starting Marchiver backend server..."
 
 # Check if Python 3 is installed
-if ! command -v python3 &> /dev/null; then
+if ! command -v uv run python3 &> /dev/null; then
     echo "Error: Python 3 is not installed or not in PATH"
     exit 1
 fi
@@ -31,7 +31,7 @@ fi
 
 # Create a new virtual environment with Python 3
 echo "Creating virtual environment with Python 3..."
-python3 -m venv .venv
+uv run python3 -m venv .venv
 
 # Activate virtual environment
 echo "Activating virtual environment..."
@@ -46,35 +46,35 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Installing dependencies..."
     # Install packages one by one to avoid dependency issues
-    python3 -m pip install --upgrade pip
+    uv run python3 -m pip install --upgrade pip
     
     # Install core packages needed for the server to run
     echo "Installing uvicorn..."
-    python3 -m pip install uvicorn==0.23.2
+    uv run python3 -m pip install uvicorn==0.23.2
     
     echo "Installing starlette (FastAPI dependency)..."
-    python3 -m pip install starlette==0.27.0
+    uv run python3 -m pip install starlette==0.27.0
     
     echo "Installing typing-extensions (FastAPI dependency)..."
-    python3 -m pip install typing-extensions==4.8.0
+    uv run python3 -m pip install typing-extensions==4.8.0
     
     echo "Installing anyio (FastAPI dependency)..."
-    python3 -m pip install anyio==3.7.1
+    uv run python3 -m pip install anyio==3.7.1
     
     echo "Installing pydantic (FastAPI dependency)..."
-    python3 -m pip install pydantic==1.10.13
+    uv run python3 -m pip install pydantic==1.10.13
     
     echo "Installing fastapi..."
-    python3 -m pip install fastapi==0.104.1 --no-deps
+    uv run python3 -m pip install fastapi==0.104.1 --no-deps
     
     echo "Installing python-dotenv..."
-    python3 -m pip install python-dotenv==1.0.0
+    uv run python3 -m pip install python-dotenv==1.0.0
     
     echo "Installing requests..."
-    python3 -m pip install requests==2.31.0
+    uv run python3 -m pip install requests==2.31.0
     
     echo "Installing other dependencies..."
-    python3 -m pip install httpx==0.25.0 beautifulsoup4==4.12.2
+    uv run python3 -m pip install httpx==0.25.0 beautifulsoup4==4.12.2
     
     # Skip problematic packages: pydantic, google-cloud-aiplatform, lxml
     echo "Note: Some packages were skipped due to compatibility issues."
@@ -91,6 +91,6 @@ fi
 
 # Start the server
 echo "Starting server..."
-cd backend && python3 main.py
+cd backend && uv run python3 main.py
 
 echo "Server stopped."
