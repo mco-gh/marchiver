@@ -31,7 +31,7 @@ class SummarizationService:
             A summary of the text.
         """
         if not self.model_initialized:
-            return "Summarization not available."
+            return self._create_fallback_summary(text)
         
         try:
             # Prepare the prompt
@@ -52,7 +52,27 @@ class SummarizationService:
             if hasattr(response, "text"):
                 return response.text.strip()
             else:
-                return "Summarization failed."
+                return self._create_fallback_summary(text)
         except Exception as e:
             print(f"Failed to summarize text: {e}")
-            return "Summarization failed."
+            return self._create_fallback_summary(text)
+    
+    def _create_fallback_summary(self, text: str) -> str:
+        """
+        Create a simple fallback summary when the API fails.
+        
+        Args:
+            text: The text to summarize.
+            
+        Returns:
+            A simple summary of the text.
+        """
+        # Get the first few sentences as a simple summary
+        sentences = text.split('.')
+        if len(sentences) <= 3:
+            return text  # Text is already short enough
+        
+        # Take first 3 sentences
+        summary = '. '.join(sentences[:3]) + '.'
+        
+        return summary.strip()

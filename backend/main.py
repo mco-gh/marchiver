@@ -35,5 +35,9 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+@app.get(f"{API_PREFIX}/health")
+async def api_health_check():
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)

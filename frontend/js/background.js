@@ -36,45 +36,110 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle savePage action
   if (message.action === 'savePage') {
-    // Mock successful response
-    sendResponse({
-      success: true,
-      document: {
-        id: 'mock-doc-' + Date.now(),
-        url: message.url,
-        title: 'Saved page: ' + message.url,
-        summary: message.summarize ? 'This is a mock summary' : null
+    // Build the URL with query parameters
+    const fetchUrl = new URL(`${API_BASE_URL}/web/fetch`);
+    fetchUrl.searchParams.append('url', message.url);
+    fetchUrl.searchParams.append('save', 'true');
+    fetchUrl.searchParams.append('summarize', message.summarize ? 'true' : 'false');
+    
+    // Make API call to save the page
+    fetch(fetchUrl, {
+      method: 'POST'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
       }
+      return response.json();
+    })
+    .then(data => {
+      sendResponse({
+        success: true,
+        document: data
+      });
+    })
+    .catch(error => {
+      sendResponse({
+        success: false,
+        error: error.message
+      });
     });
-    return false; // No async response needed
+    
+    return true; // Async response needed
   }
   
   // Handle summarizePage action
   if (message.action === 'summarizePage') {
-    // Mock successful response
-    sendResponse({
-      success: true,
-      document: {
-        id: 'mock-doc-' + Date.now(),
-        url: message.url,
-        title: 'Summarized page: ' + message.url,
-        summary: 'This is a mock summary for ' + message.url
+    // Build the URL with query parameters
+    const fetchUrl = new URL(`${API_BASE_URL}/web/fetch`);
+    fetchUrl.searchParams.append('url', message.url);
+    fetchUrl.searchParams.append('save', 'true');
+    fetchUrl.searchParams.append('summarize', 'true');
+    
+    // Make API call to summarize the page
+    fetch(fetchUrl, {
+      method: 'POST'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
       }
+      return response.json();
+    })
+    .then(data => {
+      sendResponse({
+        success: true,
+        document: data
+      });
+    })
+    .catch(error => {
+      sendResponse({
+        success: false,
+        error: error.message
+      });
     });
-    return false; // No async response needed
+    
+    return true; // Async response needed
   }
   
   // Handle search action
   if (message.action === 'search') {
-    // Mock successful response
-    sendResponse({
-      success: true,
-      results: [
-        { id: 'mock-result-1', title: 'Mock Result 1', url: 'http://example.com/1' },
-        { id: 'mock-result-2', title: 'Mock Result 2', url: 'http://example.com/2' }
-      ]
-    });
-    return false; // No async response needed
+    const query = message.query || '';
+    const semantic = message.semantic || false;
+    const limit = message.limit || 10;
+    const offset = message.offset || 0;
+    
+    // Build the search URL with query parameters
+    const searchUrl = new URL(`${API_BASE_URL}/documents`);
+    if (query) {
+      searchUrl.searchParams.append('query', query);
+      searchUrl.searchParams.append('semantic', semantic);
+    }
+    searchUrl.searchParams.append('limit', limit);
+    searchUrl.searchParams.append('offset', offset);
+    
+    // Make API call to search documents
+    fetch(searchUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`API returned status ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        sendResponse({
+          success: true,
+          results: data
+        });
+      })
+      .catch(error => {
+        sendResponse({
+          success: false,
+          error: error.message
+        });
+      });
+    
+    return true; // Async response needed
   }
   
   // If we get here, we didn't handle the message
@@ -88,8 +153,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   
   switch (info.menuItemId) {
     case 'savePage':
-      // Handle save page action
-      // Show a notification
+      // Show initial notification
       chrome.notifications.create({
         type: 'basic',
         iconUrl: '/images/icon128.png',
@@ -97,20 +161,44 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         message: 'Saving page to Marchiver...'
       });
       
-      // Mock successful save
-      setTimeout(() => {
+      // Build the URL with query parameters
+      const fetchUrl = new URL(`${API_BASE_URL}/web/fetch`);
+      fetchUrl.searchParams.append('url', url);
+      fetchUrl.searchParams.append('save', 'true');
+      fetchUrl.searchParams.append('summarize', 'false');
+      
+      // Make API call to save the page
+      fetch(fetchUrl, {
+        method: 'POST'
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`API returned status ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Show success notification
         chrome.notifications.create({
           type: 'basic',
           iconUrl: '/images/icon128.png',
           title: 'Marchiver',
           message: 'Page saved successfully!'
         });
-      }, 1000);
+      })
+      .catch(error => {
+        // Show error notification
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: '/images/icon128.png',
+          title: 'Marchiver',
+          message: `Error saving page: ${error.message}`
+        });
+      });
       break;
       
     case 'summarizePage':
-      // Handle summarize page action
-      // Show a notification
+      // Show initial notification
       chrome.notifications.create({
         type: 'basic',
         iconUrl: '/images/icon128.png',
@@ -118,15 +206,40 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         message: 'Summarizing page...'
       });
       
-      // Mock successful summarization
-      setTimeout(() => {
+      // Build the URL with query parameters
+      const summarizeUrl = new URL(`${API_BASE_URL}/web/fetch`);
+      summarizeUrl.searchParams.append('url', url);
+      summarizeUrl.searchParams.append('save', 'true');
+      summarizeUrl.searchParams.append('summarize', 'true');
+      
+      // Make API call to summarize the page
+      fetch(summarizeUrl, {
+        method: 'POST'
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`API returned status ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Show success notification
         chrome.notifications.create({
           type: 'basic',
           iconUrl: '/images/icon128.png',
           title: 'Marchiver',
           message: 'Page summarized and saved successfully!'
         });
-      }, 2000);
+      })
+      .catch(error => {
+        // Show error notification
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: '/images/icon128.png',
+          title: 'Marchiver',
+          message: `Error summarizing page: ${error.message}`
+        });
+      });
       break;
   }
 });
