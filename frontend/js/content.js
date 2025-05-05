@@ -1,34 +1,150 @@
-// Constants
-const MARCHIVER_BADGE_ID = 'marchiver-badge';
-
-// State
-let isBadgeVisible = false;
-
-// Initialize
-init();
+// Function to notify the page that the extension is active
+function notifyPageExtensionActive() {
+  // Dispatch custom event
+  document.dispatchEvent(new CustomEvent('marchiver-extension-response'));
+  
+  // Use window.postMessage as a backup
+  window.postMessage({
+    type: 'MARCHIVER_EXTENSION_STATUS',
+    status: 'active'
+  }, window.location.origin);
+}
 
 // Main initialization
 function init() {
   // Listen for messages from background script
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'showBadge') {
-      showBadge();
-      sendResponse({ success: true });
-    }
-    
-    if (message.action === 'hideBadge') {
-      hideBadge();
-      sendResponse({ success: true });
-    }
-    
     if (message.action === 'getPageContent') {
       const content = getPageContent();
       sendResponse({ success: true, content });
     }
+    
+    return false; // No async response
   });
-  
+
   // Add keyboard shortcut listener
   document.addEventListener('keydown', handleKeyDown);
+  
+  // Add custom event listeners for test page
+  setupTestPageEventListeners();
+  
+  // Send a message to the background script to confirm the extension is working
+  chrome.runtime.sendMessage({ action: 'ping' }, function(response) {
+    // Notify the page that the extension is active
+    notifyPageExtensionActive();
+  });
+  
+  // Set up a periodic notification to ensure the page gets the message
+  setTimeout(notifyPageExtensionActive, 500);
+}
+
+// Set up event listeners for the test page
+function setupTestPageEventListeners() {
+  // Listen for ping event to check if extension is active
+  document.addEventListener('marchiver-extension-ping', function(event) {
+    // Respond to let the test page know the extension is active
+    notifyPageExtensionActive();
+    
+    // Also send a message to the background script
+    chrome.runtime.sendMessage({ action: 'ping' });
+  });
+  
+  // Listen for save page event
+  document.addEventListener('marchiver-save-page', function(event) {
+    const detail = event.detail || {};
+    chrome.runtime.sendMessage(
+      { action: 'savePage', url: detail.url || window.location.href, summarize: detail.summarize || false },
+      (response) => {
+        // Send response back to the test page
+        window.dispatchEvent(new CustomEvent('marchiver-save-page-response', {
+          detail: response || { success: false, error: 'No response from extension' }
+        }));
+        
+        showNotification(response && response.success ? 
+          'Page saved to Marchiver' : 
+          'Error saving page', 
+          !(response && response.success));
+      }
+    );
+  });
+  
+  // Listen for summarize page event
+  document.addEventListener('marchiver-summarize-page', function(event) {
+    const detail = event.detail || {};
+    chrome.runtime.sendMessage(
+      { action: 'summarizePage', url: detail.url || window.location.href },
+      (response) => {
+        // Send response back to the test page
+        window.dispatchEvent(new CustomEvent('marchiver-summarize-page-response', {
+          detail: response || { success: false, error: 'No response from extension' }
+        }));
+        
+        showNotification(response && response.success ? 
+          'Page summarized and saved to Marchiver' : 
+          'Error summarizing page', 
+          !(response && response.success));
+      }
+    );
+  });
+  
+  // Listen for search event
+  document.addEventListener('marchiver-search', function(event) {
+    const detail = event.detail || {};
+    chrome.runtime.sendMessage(
+      { action: 'search', query: detail.query || 'test', semantic: detail.semantic !== undefined ? detail.semantic : true, limit: detail.limit || 5 },
+      (response) => {
+        // Send response back to the test page
+        window.dispatchEvent(new CustomEvent('marchiver-search-response', {
+          detail: response || { success: false, error: 'No response from extension' }
+        }));
+      }
+    );
+  });
+  
+  // Listen for API check event
+  document.addEventListener('marchiver-check-api', function() {
+    chrome.runtime.sendMessage({ action: 'getApiEndpoint' }, function(response) {
+      if (response && response.apiEndpoint) {
+        const apiUrl = response.apiEndpoint + '/health';
+        
+        // Make a fetch request to the API
+        fetch(apiUrl)
+          .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            throw new Error('API returned status ' + response.status);
+          })
+          .then(data => {
+            // Send success response back to the test page
+            window.dispatchEvent(new CustomEvent('marchiver-check-api-response', {
+              detail: { 
+                success: true, 
+                apiUrl: response.apiEndpoint,
+                data: data 
+              }
+            }));
+          })
+          .catch(error => {
+            // Send error response back to the test page
+            window.dispatchEvent(new CustomEvent('marchiver-check-api-response', {
+              detail: { 
+                success: false, 
+                error: error.message 
+              }
+            }));
+          });
+      } else {
+        // Send error response back to the test page
+        window.dispatchEvent(new CustomEvent('marchiver-check-api-response', {
+          detail: { 
+            success: false, 
+            error: 'Failed to get API endpoint from extension' 
+          }
+        }));
+      }
+    });
+  });
 }
 
 // Handle keyboard shortcuts
@@ -49,11 +165,10 @@ function savePage() {
   chrome.runtime.sendMessage(
     { action: 'savePage', url: window.location.href, summarize: false },
     (response) => {
-      if (response && response.success) {
-        showNotification('Page saved to Marchiver');
-      } else {
-        showNotification('Error saving page', true);
-      }
+      showNotification(response && response.success ? 
+        'Page saved to Marchiver' : 
+        'Error saving page', 
+        !(response && response.success));
     }
   );
 }
@@ -63,11 +178,10 @@ function summarizePage() {
   chrome.runtime.sendMessage(
     { action: 'summarizePage', url: window.location.href },
     (response) => {
-      if (response && response.success) {
-        showNotification('Page summarized and saved to Marchiver');
-      } else {
-        showNotification('Error summarizing page', true);
-      }
+      showNotification(response && response.success ? 
+        'Page summarized and saved to Marchiver' : 
+        'Error summarizing page', 
+        !(response && response.success));
     }
   );
 }
@@ -80,94 +194,6 @@ function getPageContent() {
     content: document.body.innerText,
     html: document.documentElement.outerHTML
   };
-}
-
-// Show notification badge
-function showBadge() {
-  if (isBadgeVisible) return;
-  
-  const badge = document.createElement('div');
-  badge.id = MARCHIVER_BADGE_ID;
-  badge.innerHTML = `
-    <div class="marchiver-badge-content">
-      <img src="${chrome.runtime.getURL('images/icon48.png')}" alt="Marchiver" class="marchiver-badge-icon">
-      <div class="marchiver-badge-text">Saved to Marchiver</div>
-      <button class="marchiver-badge-close">×</button>
-    </div>
-  `;
-  
-  // Style the badge
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    padding: 12px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 14px;
-    transition: opacity 0.3s ease-in-out;
-  `;
-  
-  // Style the content
-  const content = badge.querySelector('.marchiver-badge-content');
-  content.style.cssText = `
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  `;
-  
-  // Style the icon
-  const icon = badge.querySelector('.marchiver-badge-icon');
-  icon.style.cssText = `
-    width: 24px;
-    height: 24px;
-  `;
-  
-  // Style the text
-  const text = badge.querySelector('.marchiver-badge-text');
-  text.style.cssText = `
-    color: #333;
-    font-weight: 500;
-  `;
-  
-  // Style the close button
-  const closeBtn = badge.querySelector('.marchiver-badge-close');
-  closeBtn.style.cssText = `
-    background: none;
-    border: none;
-    color: #999;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0;
-    margin-left: 10px;
-  `;
-  
-  // Add event listener to close button
-  closeBtn.addEventListener('click', hideBadge);
-  
-  // Add badge to page
-  document.body.appendChild(badge);
-  isBadgeVisible = true;
-  
-  // Auto-hide after 5 seconds
-  setTimeout(hideBadge, 5000);
-}
-
-// Hide notification badge
-function hideBadge() {
-  const badge = document.getElementById(MARCHIVER_BADGE_ID);
-  if (badge) {
-    badge.style.opacity = '0';
-    setTimeout(() => {
-      if (badge.parentNode) {
-        badge.parentNode.removeChild(badge);
-      }
-      isBadgeVisible = false;
-    }, 300);
-  }
 }
 
 // Show notification
@@ -211,3 +237,6 @@ function showNotification(message, isError = false) {
     }, 300);
   }, 3000);
 }
+
+// Initialize the content script
+init();

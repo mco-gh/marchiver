@@ -42,18 +42,24 @@ This document provides instructions for testing the Marchiver application. The t
 
 1. Make sure the mock backend server is running (see above).
 
-2. Open the test extension page:
+2. Load the Chrome extension first (see "Testing the Chrome Extension" section below).
+
+3. Open the test extension page:
    ```
    ./test_frontend.sh
    ```
    This will open the `frontend/test_extension.html` file in your default browser.
 
-3. On the test page, you can test various features of the extension:
+4. The test page will automatically check if the extension is active and display the status at the top.
+
+5. On the test page, you can test various features of the extension:
    - Test 1: Save Current Page - Tests saving the current page to the archive
    - Test 2: Summarize Current Page - Tests summarizing the current page and saving it to the archive
    - Test 3: Search Archive - Tests searching the archive for the term "test"
    - Test 4: Check API Connection - Tests if the extension can connect to the Marchiver API
    - Test 5: Keyboard Shortcuts - Tests the keyboard shortcuts for saving and summarizing pages
+
+6. For more detailed information about the test page and troubleshooting, see `frontend/TEST_README.md`.
 
 ## Testing the Chrome Extension
 
@@ -76,6 +82,28 @@ If you want to test the actual Chrome extension:
 - If you encounter issues with the mock backend server, check the terminal output for error messages.
 - If the extension can't connect to the API, make sure the backend server is running and the API endpoint in the extension settings is correct (default: http://localhost:8000/api).
 - If you need to modify the mock services, you can edit the files in `backend/app/services/` with the `_mock` suffix.
+
+### Common Issues
+
+#### "Cannot read properties of undefined (reading 'sendMessage')" Error
+
+If you see this error when using the test page, it means the page is trying to access Chrome extension APIs directly, but these APIs are only available to pages that are served over HTTP or HTTPS, not when opened directly as a file.
+
+**Solution:**
+1. Always use the provided `./test_frontend.sh` script to run the test page
+2. This script starts a local web server and opens the test page via http://localhost:8080
+3. The test page now uses a communication bridge that's injected by a special content script
+4. Make sure the Chrome extension is properly installed and enabled
+5. If the error persists, check the browser console for additional error messages
+6. Try reloading the extension from chrome://extensions/ and then refresh the test page
+
+The communication bridge approach provides a more reliable way to test the extension because:
+- It doesn't rely on direct access to Chrome extension APIs
+- It uses a dedicated content script specifically for testing
+- It provides detailed debug information to help diagnose issues
+- It works consistently across different browsers and configurations
+
+For more detailed troubleshooting, refer to `frontend/TEST_README.md`.
 
 ## Notes
 

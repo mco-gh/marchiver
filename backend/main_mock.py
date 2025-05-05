@@ -35,8 +35,14 @@ app.include_router(api_router, prefix=API_PREFIX)
 async def root():
     return {"message": "Welcome to Marchiver API (Mock Version)"}
 
+# Health check endpoint at root level
 @app.get("/health")
-async def health_check():
+async def root_health_check():
+    return {"status": "healthy", "mode": "mock"}
+
+# Health check endpoint under API prefix
+@app.get(f"{API_PREFIX}/health")
+async def api_health_check():
     return {"status": "healthy", "mode": "mock"}
 
 if __name__ == "__main__":

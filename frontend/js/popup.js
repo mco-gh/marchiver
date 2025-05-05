@@ -1,250 +1,141 @@
-// Constants
-const API_BASE_URL = 'http://localhost:8000/api';
+// Popup script for Marchiver extension
 
-// DOM Elements
-const savePageBtn = document.getElementById('savePageBtn');
-const summarizeBtn = document.getElementById('summarizeBtn');
-const searchInput = document.getElementById('searchInput');
-const semanticSearchCheckbox = document.getElementById('semanticSearch');
-const searchBtn = document.getElementById('searchBtn');
-const resultsContainer = document.getElementById('results');
-const statusElement = document.getElementById('status');
-const optionsBtn = document.getElementById('optionsBtn');
+// Function to update a result element
+function updateResult(elementId, message, isSuccess = true) {
+  const resultElement = document.getElementById(elementId);
+  resultElement.textContent = message;
+  resultElement.className = isSuccess ? 'result success' : 'result error';
+}
 
-// Event Listeners
-document.addEventListener('DOMContentLoaded', init);
-savePageBtn.addEventListener('click', savePage);
-summarizeBtn.addEventListener('click', summarizePage);
-searchBtn.addEventListener('click', performSearch);
-optionsBtn.addEventListener('click', openOptions);
-searchInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    performSearch();
-  }
+// Function to format a response for display
+function formatResponse(response) {
+  return JSON.stringify(response, null, 2);
+}
+
+// Set up ping button
+document.getElementById('pingBtn').addEventListener('click', function() {
+  updateResult('pingResult', 'Checking extension status...');
+  
+  chrome.runtime.sendMessage({ action: 'ping' }, function(response) {
+    if (chrome.runtime.lastError) {
+      updateResult('pingResult', 'Error: ' + chrome.runtime.lastError.message, false);
+      return;
+    }
+    
+    if (response && response.success) {
+      updateResult('pingResult', 'Extension is active and working properly.\n\nResponse: ' + formatResponse(response));
+    } else {
+      updateResult('pingResult', 'Extension responded but with an error.\n\nResponse: ' + formatResponse(response), false);
+    }
+  });
 });
 
-// Initialization
-async function init() {
-  // Load settings
-  const settings = await loadSettings();
+// Set up save button
+document.getElementById('saveBtn').addEventListener('click', function() {
+  updateResult('actionResult', 'Saving current page...');
   
-  // Check if API is reachable
-  try {
-    const response = await fetch(`${settings.apiEndpoint || API_BASE_URL}/health`);
-    if (response.ok) {
-      showStatus('Connected to Marchiver API', 'success');
-    } else {
-      showStatus('API connection error. Check settings.', 'error');
+  // Get the active tab
+  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+    if (!tabs || tabs.length === 0) {
+      updateResult('actionResult', 'Error: No active tab found', false);
+      return;
     }
-  } catch (error) {
-    showStatus('API connection error. Check settings.', 'error');
-  }
-}
+    
+    const activeTab = tabs[0];
+    
+    // Send a message to the background script
+    chrome.runtime.sendMessage(
+      { action: 'savePage', url: activeTab.url, summarize: false },
+      function(response) {
+        if (chrome.runtime.lastError) {
+          updateResult('actionResult', 'Error: ' + chrome.runtime.lastError.message, false);
+          return;
+        }
+        
+        if (response && response.success) {
+          updateResult('actionResult', 'Page saved successfully.\n\nResponse: ' + formatResponse(response));
+        } else {
+          updateResult('actionResult', 'Error saving page.\n\nResponse: ' + formatResponse(response), false);
+        }
+      }
+    );
+  });
+});
 
-// Save current page
-async function savePage() {
-  showStatus('Saving page...');
+// Set up summarize button
+document.getElementById('summarizeBtn').addEventListener('click', function() {
+  updateResult('actionResult', 'Summarizing current page...');
   
-  try {
-    // Get current tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Get settings
-    const settings = await loadSettings();
-    const apiUrl = `${settings.apiEndpoint || API_BASE_URL}/web/fetch`;
-    
-    // Save the page
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: tab.url,
-        save: true,
-        summarize: settings.autoSummarize !== false,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+  // Get the active tab
+  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+    if (!tabs || tabs.length === 0) {
+      updateResult('actionResult', 'Error: No active tab found', false);
+      return;
     }
     
-    const data = await response.json();
+    const activeTab = tabs[0];
     
-    showStatus('Page saved successfully!', 'success');
-    
-    // Show the saved document
-    chrome.tabs.create({
-      url: `document.html?id=${data.id}`
-    });
-    
-  } catch (error) {
-    console.error('Error saving page:', error);
-    showStatus(`Error: ${error.message}`, 'error');
-  }
-}
+    // Send a message to the background script
+    chrome.runtime.sendMessage(
+      { action: 'summarizePage', url: activeTab.url },
+      function(response) {
+        if (chrome.runtime.lastError) {
+          updateResult('actionResult', 'Error: ' + chrome.runtime.lastError.message, false);
+          return;
+        }
+        
+        if (response && response.success) {
+          updateResult('actionResult', 'Page summarized successfully.\n\nResponse: ' + formatResponse(response));
+        } else {
+          updateResult('actionResult', 'Error summarizing page.\n\nResponse: ' + formatResponse(response), false);
+        }
+      }
+    );
+  });
+});
 
-// Summarize current page
-async function summarizePage() {
-  showStatus('Summarizing page...');
+// Set up check API button
+document.getElementById('checkApiBtn').addEventListener('click', function() {
+  updateResult('apiResult', 'Checking API connection...');
   
-  try {
-    // Get current tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    // Get settings
-    const settings = await loadSettings();
-    const apiUrl = `${settings.apiEndpoint || API_BASE_URL}/web/fetch`;
-    
-    // Fetch and summarize the page
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: tab.url,
-        save: true,
-        summarize: true,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+  chrome.runtime.sendMessage({ action: 'getApiEndpoint' }, function(response) {
+    if (chrome.runtime.lastError) {
+      updateResult('apiResult', 'Error: ' + chrome.runtime.lastError.message, false);
+      return;
     }
     
-    const data = await response.json();
-    
-    showStatus('Page summarized and saved!', 'success');
-    
-    // Show the saved document
-    chrome.tabs.create({
-      url: `document.html?id=${data.id}`
-    });
-    
-  } catch (error) {
-    console.error('Error summarizing page:', error);
-    showStatus(`Error: ${error.message}`, 'error');
-  }
-}
-
-// Perform search
-async function performSearch() {
-  const query = searchInput.value.trim();
-  
-  if (!query) {
-    showStatus('Please enter a search query', 'error');
-    return;
-  }
-  
-  showStatus('Searching...');
-  resultsContainer.innerHTML = '';
-  
-  try {
-    // Get settings
-    const settings = await loadSettings();
-    const useSemanticSearch = semanticSearchCheckbox.checked;
-    const maxResults = settings.maxResults || 10;
-    
-    // Build API URL
-    const apiUrl = `${settings.apiEndpoint || API_BASE_URL}/documents?query=${encodeURIComponent(query)}&semantic=${useSemanticSearch}&limit=${maxResults}`;
-    
-    // Perform search
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    if (!response || !response.success || !response.apiEndpoint) {
+      updateResult('apiResult', 'Error getting API endpoint.\n\nResponse: ' + formatResponse(response), false);
+      return;
     }
     
-    const results = await response.json();
+    const apiUrl = response.apiEndpoint + '/health';
     
-    if (results.length === 0) {
-      resultsContainer.innerHTML = '<div class="no-results">No results found</div>';
-      showStatus('No results found', 'info');
-    } else {
-      displaySearchResults(results);
-      showStatus(`Found ${results.length} results`, 'success');
-    }
-    
-  } catch (error) {
-    console.error('Error searching:', error);
-    showStatus(`Error: ${error.message}`, 'error');
-  }
-}
-
-// Display search results
-function displaySearchResults(results) {
-  resultsContainer.innerHTML = '';
-  
-  results.forEach(result => {
-    const resultItem = document.createElement('div');
-    resultItem.className = 'result-item';
-    resultItem.dataset.id = result.id;
-    
-    const title = document.createElement('div');
-    title.className = 'result-title';
-    title.textContent = result.title;
-    
-    const url = document.createElement('div');
-    url.className = 'result-url';
-    url.textContent = result.url || 'No URL';
-    
-    const summary = document.createElement('div');
-    summary.className = 'result-summary';
-    summary.textContent = result.summary || result.content.substring(0, 150) + '...';
-    
-    resultItem.appendChild(title);
-    resultItem.appendChild(url);
-    resultItem.appendChild(summary);
-    
-    resultItem.addEventListener('click', () => {
-      chrome.tabs.create({
-        url: `document.html?id=${result.id}`
+    // Make a fetch request to the API
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('API returned status ' + response.status);
+        }
+        return response.json();
+      })
+      .then(data => {
+        updateResult('apiResult', 'API connection successful.\n\nEndpoint: ' + response.apiEndpoint + '\n\nResponse: ' + formatResponse(data));
+      })
+      .catch(error => {
+        updateResult('apiResult', 'Error connecting to API: ' + error.message + '\n\nEndpoint: ' + response.apiEndpoint, false);
       });
-    });
-    
-    resultsContainer.appendChild(resultItem);
   });
-}
+});
 
-// Open options page
-function openOptions() {
-  chrome.runtime.openOptionsPage();
-}
-
-// Load settings from storage
-async function loadSettings() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get({
-      apiEndpoint: API_BASE_URL,
-      apiKey: '',
-      embeddingModel: 'gemini',
-      showRelatedDocs: true,
-      showProximityScore: true,
-      maxResults: 10,
-      autoSummarize: true,
-      cacheExpiration: 30
-    }, (items) => {
-      resolve(items);
-    });
-  });
-}
-
-// Show status message
-function showStatus(message, type = '') {
-  statusElement.textContent = message;
-  statusElement.className = 'status';
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  // Clear result areas
+  document.getElementById('pingResult').textContent = '';
+  document.getElementById('actionResult').textContent = '';
+  document.getElementById('apiResult').textContent = '';
   
-  if (type) {
-    statusElement.classList.add(type);
-  }
-  
-  // Clear status after 5 seconds if it's a success message
-  if (type === 'success') {
-    setTimeout(() => {
-      statusElement.textContent = '';
-      statusElement.className = 'status';
-    }, 5000);
-  }
-}
+  // Set version info
+  const manifest = chrome.runtime.getManifest();
+  document.getElementById('versionInfo').textContent = 'v' + manifest.version;
+});

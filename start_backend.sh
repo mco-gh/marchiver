@@ -45,7 +45,7 @@ read -p "Do you want to install/update dependencies? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Installing dependencies..."
-    uv run python3 -m pip install --upgrade pip -r backend/requirements.txt
+    uv run python3 -m pip install --trusted-host pypi.org --upgrade pip -r backend/requirements.txt
 fi
 
 # Check for environment variables
