@@ -45,17 +45,30 @@
     button:hover {
       background-color: #45a049;
     }
+    button:disabled {
+      background-color: #cccccc;
+      color: #888888;
+      cursor: not-allowed;
+    }
     button.secondary {
       background-color: #2196F3;
     }
     button.secondary:hover {
       background-color: #0b7dda;
     }
+    button.secondary:disabled {
+      background-color: #a8d4f7;
+      color: #888888;
+    }
     button.tertiary {
       background-color: #ff9800;
     }
     button.tertiary:hover {
       background-color: #e68a00;
+    }
+    button.tertiary:disabled {
+      background-color: #ffd699;
+      color: #888888;
     }
     .status-indicator {
       width: 24px;

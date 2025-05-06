@@ -12,13 +12,18 @@ function updateStatusIndicator(elementId, isSuccess) {
   indicator.className = isSuccess ? 'status-indicator check' : 'status-indicator cross';
 }
 
-// Function to show a loading spinner
-function showSpinner(elementId) {
+// Function to show a loading spinner with optional message
+function showSpinner(elementId, message = null) {
   const indicator = document.getElementById(elementId);
   indicator.innerHTML = '';
   const spinner = document.createElement('div');
   spinner.className = 'spinner';
   indicator.appendChild(spinner);
+  
+  // If a message is provided and it's the summarize indicator, update the result area
+  if (message && elementId === 'summarizeIndicator') {
+    document.getElementById('summaryResult').textContent = message;
+  }
 }
 
 // Function to hide a spinner
@@ -86,7 +91,7 @@ document.getElementById('pingBtn').addEventListener('click', function() {
 
 // Set up save button
 document.getElementById('saveBtn').addEventListener('click', function() {
-  // Show loading spinner
+  // Show loading spinner with message
   showSpinner('saveIndicator');
   
   // Get the active tab
@@ -98,10 +103,28 @@ document.getElementById('saveBtn').addEventListener('click', function() {
     
     const activeTab = tabs[0];
     
+    // Update button text to show progress
+    const saveBtn = document.getElementById('saveBtn');
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
+    
+    // Set a timeout to show additional feedback if it's taking a while
+    const slowOperationTimeout = setTimeout(() => {
+      saveBtn.textContent = 'Still saving (API calls in progress)...';
+    }, 3000);
+    
     // Send a message to the background script
     chrome.runtime.sendMessage(
       { action: 'savePage', url: activeTab.url, summarize: true },
       function(response) {
+        // Clear the timeout
+        clearTimeout(slowOperationTimeout);
+        
+        // Reset button
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+        
         if (chrome.runtime.lastError) {
           updateStatusIndicator('saveIndicator', false);
           return;
@@ -116,8 +139,7 @@ document.getElementById('saveBtn').addEventListener('click', function() {
 // Set up summarize button
 document.getElementById('summarizeBtn').addEventListener('click', function() {
   // Clear previous result and show loading indicators
-  document.getElementById('summaryResult').textContent = 'Summarizing current page...';
-  showSpinner('summarizeIndicator');
+  showSpinner('summarizeIndicator', 'Summarizing current page...');
   
   // Get the active tab
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
@@ -130,10 +152,28 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
     
     const activeTab = tabs[0];
     
+    // Update button text to show progress
+    const summarizeBtn = document.getElementById('summarizeBtn');
+    const originalText = summarizeBtn.textContent;
+    summarizeBtn.textContent = 'Summarizing...';
+    summarizeBtn.disabled = true;
+    
+    // Set a timeout to update the message if it's taking a while
+    const slowOperationTimeout = setTimeout(() => {
+      document.getElementById('summaryResult').textContent = 'Still summarizing... This may take a moment as we process the page content and generate a summary using AI.';
+    }, 3000);
+    
     // Send a message to the background script
     chrome.runtime.sendMessage(
       { action: 'summarizePage', url: activeTab.url },
       function(response) {
+        // Clear the timeout
+        clearTimeout(slowOperationTimeout);
+        
+        // Reset button
+        summarizeBtn.textContent = originalText;
+        summarizeBtn.disabled = false;
+        
         if (chrome.runtime.lastError) {
           document.getElementById('summaryResult').textContent = 'Error: ' + chrome.runtime.lastError.message;
           document.getElementById('summaryResult').className = 'result error';
