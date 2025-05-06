@@ -89,6 +89,7 @@ async def search_documents(
 async def fetch_web_page(url: str, save: bool = True, summarize: bool = True):
     """
     Fetch a web page, optionally summarize it, and optionally save it to the archive.
+    If a document with the same URL already exists, it will be updated instead of creating a new one.
     """
     try:
         # Fetch the web page
@@ -115,8 +116,21 @@ async def fetch_web_page(url: str, save: bool = True, summarize: bool = True):
             # Generate embedding for the document
             embedding = await embedding_service.generate_embedding(content)
             
-            # Create the document with the embedding
-            return await document_service.create_document(document, embedding)
+            # Check if a document with the same URL already exists
+            existing_document = await document_service.find_document_by_url(url)
+            
+            if existing_document:
+                # Update the existing document
+                document_update = DocumentUpdate(
+                    content=content,
+                    title=title,
+                    summary=document.summary if summarize else None,
+                    metadata=document.metadata
+                )
+                return await document_service.update_document(existing_document.id, document_update, embedding)
+            else:
+                # Create a new document
+                return await document_service.create_document(document, embedding)
         
         # Return the document without saving
         return Document(

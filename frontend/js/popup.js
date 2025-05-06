@@ -1,43 +1,98 @@
 // Popup script for Marchiver extension
 
-// Function to update a result element
-function updateResult(elementId, message, isSuccess = true) {
-  const resultElement = document.getElementById(elementId);
-  resultElement.textContent = message;
-  resultElement.className = isSuccess ? 'result success' : 'result error';
-}
-
 // Function to format a response for display
 function formatResponse(response) {
   return JSON.stringify(response, null, 2);
 }
 
+// Function to update a status indicator
+function updateStatusIndicator(elementId, isSuccess) {
+  const indicator = document.getElementById(elementId);
+  indicator.innerHTML = isSuccess ? '✓' : '✗';
+  indicator.className = isSuccess ? 'status-indicator check' : 'status-indicator cross';
+}
+
+// Function to show a loading spinner
+function showSpinner(elementId) {
+  const indicator = document.getElementById(elementId);
+  indicator.innerHTML = '';
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+  indicator.appendChild(spinner);
+}
+
+// Function to hide a spinner
+function hideSpinner(elementId) {
+  const indicator = document.getElementById(elementId);
+  indicator.innerHTML = '';
+}
+
+// Function to display a summary in a user-friendly way
+function displaySummary(response) {
+  const resultElement = document.getElementById('summaryResult');
+  
+  // Clear previous content
+  resultElement.innerHTML = '';
+  resultElement.className = 'result success';
+  
+  if (response && response.document && response.document.summary) {
+    // Create title element
+    const titleElement = document.createElement('div');
+    titleElement.className = 'summary-title';
+    titleElement.textContent = response.document.title || 'Summary';
+    resultElement.appendChild(titleElement);
+    
+    // Create summary content element
+    const summaryElement = document.createElement('div');
+    summaryElement.className = 'summary-content';
+    summaryElement.textContent = response.document.summary;
+    resultElement.appendChild(summaryElement);
+    
+    // Add metadata if available
+    if (response.document.url) {
+      const urlElement = document.createElement('div');
+      urlElement.className = 'summary-url';
+      urlElement.innerHTML = `<strong>Source:</strong> <a href="${response.document.url}" target="_blank">${response.document.url}</a>`;
+      resultElement.appendChild(urlElement);
+    }
+    
+    // Add document ID
+    if (response.document.id) {
+      const idElement = document.createElement('div');
+      idElement.className = 'summary-id';
+      idElement.innerHTML = `<strong>Document ID:</strong> ${response.document.id}`;
+      resultElement.appendChild(idElement);
+    }
+  } else {
+    // No summary available
+    resultElement.textContent = 'No summary available in the response.';
+  }
+}
+
 // Set up ping button
 document.getElementById('pingBtn').addEventListener('click', function() {
-  updateResult('pingResult', 'Checking extension status...');
+  // Show loading spinner
+  showSpinner('pingIndicator');
   
   chrome.runtime.sendMessage({ action: 'ping' }, function(response) {
     if (chrome.runtime.lastError) {
-      updateResult('pingResult', 'Error: ' + chrome.runtime.lastError.message, false);
+      updateStatusIndicator('pingIndicator', false);
       return;
     }
     
-    if (response && response.success) {
-      updateResult('pingResult', 'Extension is active and working properly.\n\nResponse: ' + formatResponse(response));
-    } else {
-      updateResult('pingResult', 'Extension responded but with an error.\n\nResponse: ' + formatResponse(response), false);
-    }
+    updateStatusIndicator('pingIndicator', response && response.success);
   });
 });
 
 // Set up save button
 document.getElementById('saveBtn').addEventListener('click', function() {
-  updateResult('actionResult', 'Saving current page...');
+  // Show loading spinner
+  showSpinner('saveIndicator');
   
   // Get the active tab
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
     if (!tabs || tabs.length === 0) {
-      updateResult('actionResult', 'Error: No active tab found', false);
+      updateStatusIndicator('saveIndicator', false);
       return;
     }
     
@@ -45,18 +100,14 @@ document.getElementById('saveBtn').addEventListener('click', function() {
     
     // Send a message to the background script
     chrome.runtime.sendMessage(
-      { action: 'savePage', url: activeTab.url, summarize: false },
+      { action: 'savePage', url: activeTab.url, summarize: true },
       function(response) {
         if (chrome.runtime.lastError) {
-          updateResult('actionResult', 'Error: ' + chrome.runtime.lastError.message, false);
+          updateStatusIndicator('saveIndicator', false);
           return;
         }
         
-        if (response && response.success) {
-          updateResult('actionResult', 'Page saved successfully.\n\nResponse: ' + formatResponse(response));
-        } else {
-          updateResult('actionResult', 'Error saving page.\n\nResponse: ' + formatResponse(response), false);
-        }
+        updateStatusIndicator('saveIndicator', response && response.success);
       }
     );
   });
@@ -64,12 +115,16 @@ document.getElementById('saveBtn').addEventListener('click', function() {
 
 // Set up summarize button
 document.getElementById('summarizeBtn').addEventListener('click', function() {
-  updateResult('actionResult', 'Summarizing current page...');
+  // Clear previous result and show loading indicators
+  document.getElementById('summaryResult').textContent = 'Summarizing current page...';
+  showSpinner('summarizeIndicator');
   
   // Get the active tab
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
     if (!tabs || tabs.length === 0) {
-      updateResult('actionResult', 'Error: No active tab found', false);
+      document.getElementById('summaryResult').textContent = 'Error: No active tab found';
+      document.getElementById('summaryResult').className = 'result error';
+      updateStatusIndicator('summarizeIndicator', false);
       return;
     }
     
@@ -80,14 +135,20 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
       { action: 'summarizePage', url: activeTab.url },
       function(response) {
         if (chrome.runtime.lastError) {
-          updateResult('actionResult', 'Error: ' + chrome.runtime.lastError.message, false);
+          document.getElementById('summaryResult').textContent = 'Error: ' + chrome.runtime.lastError.message;
+          document.getElementById('summaryResult').className = 'result error';
+          updateStatusIndicator('summarizeIndicator', false);
           return;
         }
         
         if (response && response.success) {
-          updateResult('actionResult', 'Page summarized successfully.\n\nResponse: ' + formatResponse(response));
+          // Display the summary in a user-friendly way
+          displaySummary(response);
+          updateStatusIndicator('summarizeIndicator', true);
         } else {
-          updateResult('actionResult', 'Error summarizing page.\n\nResponse: ' + formatResponse(response), false);
+          document.getElementById('summaryResult').textContent = 'Error summarizing page.';
+          document.getElementById('summaryResult').className = 'result error';
+          updateStatusIndicator('summarizeIndicator', false);
         }
       }
     );
@@ -96,16 +157,17 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
 
 // Set up check API button
 document.getElementById('checkApiBtn').addEventListener('click', function() {
-  updateResult('apiResult', 'Checking API connection...');
+  // Show loading spinner
+  showSpinner('apiIndicator');
   
   chrome.runtime.sendMessage({ action: 'getApiEndpoint' }, function(response) {
     if (chrome.runtime.lastError) {
-      updateResult('apiResult', 'Error: ' + chrome.runtime.lastError.message, false);
+      updateStatusIndicator('apiIndicator', false);
       return;
     }
     
     if (!response || !response.success || !response.apiEndpoint) {
-      updateResult('apiResult', 'Error getting API endpoint.\n\nResponse: ' + formatResponse(response), false);
+      updateStatusIndicator('apiIndicator', false);
       return;
     }
     
@@ -120,10 +182,10 @@ document.getElementById('checkApiBtn').addEventListener('click', function() {
         return response.json();
       })
       .then(data => {
-        updateResult('apiResult', 'API connection successful.\n\nEndpoint: ' + response.apiEndpoint + '\n\nResponse: ' + formatResponse(data));
+        updateStatusIndicator('apiIndicator', true);
       })
       .catch(error => {
-        updateResult('apiResult', 'Error connecting to API: ' + error.message + '\n\nEndpoint: ' + response.apiEndpoint, false);
+        updateStatusIndicator('apiIndicator', false);
       });
   });
 });
@@ -131,9 +193,11 @@ document.getElementById('checkApiBtn').addEventListener('click', function() {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
   // Clear result areas
-  document.getElementById('pingResult').textContent = '';
-  document.getElementById('actionResult').textContent = '';
-  document.getElementById('apiResult').textContent = '';
+  document.getElementById('summaryResult').textContent = '';
+  document.getElementById('pingIndicator').innerHTML = '';
+  document.getElementById('apiIndicator').innerHTML = '';
+  document.getElementById('saveIndicator').innerHTML = '';
+  document.getElementById('summarizeIndicator').innerHTML = '';
   
   // Set version info
   const manifest = chrome.runtime.getManifest();

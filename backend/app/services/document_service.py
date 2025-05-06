@@ -83,6 +83,18 @@ class DocumentService:
         
         return Document(**doc.to_dict())
     
+    async def find_document_by_url(self, url: str) -> Optional[Document]:
+        """Find a document by URL."""
+        # Query Firestore for documents with the given URL
+        docs = self.collection.where("url", "==", url).limit(1).get()
+        
+        # Return the first document if found
+        for doc in docs:
+            return Document(**doc.to_dict())
+        
+        # Return None if no document is found
+        return None
+    
     async def update_document(
         self, document_id: str, document_update: DocumentUpdate, embedding: Optional[List[float]] = None
     ) -> Document:

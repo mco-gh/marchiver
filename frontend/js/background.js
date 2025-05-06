@@ -165,7 +165,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       const fetchUrl = new URL(`${API_BASE_URL}/web/fetch`);
       fetchUrl.searchParams.append('url', url);
       fetchUrl.searchParams.append('save', 'true');
-      fetchUrl.searchParams.append('summarize', 'false');
+      fetchUrl.searchParams.append('summarize', 'true'); // Changed to include summarization
       
       // Make API call to save the page
       fetch(fetchUrl, {
@@ -178,12 +178,17 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         return response.json();
       })
       .then(data => {
-        // Show success notification
+        // Show success notification with summary info if available
+        let message = 'Page saved successfully!';
+        if (data && data.summary) {
+          message = 'Page saved with summary!';
+        }
+        
         chrome.notifications.create({
           type: 'basic',
           iconUrl: '/images/icon128.png',
           title: 'Marchiver',
-          message: 'Page saved successfully!'
+          message: message
         });
       })
       .catch(error => {
