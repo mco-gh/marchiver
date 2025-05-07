@@ -74,6 +74,78 @@ function displaySummary(response) {
   }
 }
 
+// Function to display search results
+function displaySearchResults(results) {
+  const resultElement = document.getElementById('searchResults');
+  
+  // Clear previous content
+  resultElement.innerHTML = '';
+  resultElement.className = 'result success';
+  
+  if (results && results.length > 0) {
+    // Create a header
+    const headerElement = document.createElement('div');
+    headerElement.className = 'summary-title';
+    headerElement.textContent = `Found ${results.length} result${results.length > 1 ? 's' : ''}`;
+    resultElement.appendChild(headerElement);
+    
+    // Create a container for the results
+    const resultsContainer = document.createElement('div');
+    resultsContainer.className = 'search-results-container';
+    
+    // Add each result
+    results.forEach((doc, index) => {
+      // Create a result item
+      const resultItem = document.createElement('div');
+      resultItem.className = 'search-result-item';
+      resultItem.style.marginBottom = '15px';
+      resultItem.style.paddingBottom = '15px';
+      if (index < results.length - 1) {
+        resultItem.style.borderBottom = '1px solid #ddd';
+      }
+      
+      // Add title
+      const titleElement = document.createElement('div');
+      titleElement.className = 'summary-title';
+      titleElement.style.fontSize = '14px';
+      titleElement.style.marginBottom = '5px';
+      titleElement.textContent = doc.title || 'Untitled Document';
+      resultItem.appendChild(titleElement);
+      
+      // Add summary if available
+      if (doc.summary) {
+        const summaryElement = document.createElement('div');
+        summaryElement.className = 'summary-content';
+        summaryElement.style.fontSize = '12px';
+        summaryElement.style.marginBottom = '5px';
+        // Truncate summary if it's too long
+        const maxLength = 150;
+        summaryElement.textContent = doc.summary.length > maxLength 
+          ? doc.summary.substring(0, maxLength) + '...' 
+          : doc.summary;
+        resultItem.appendChild(summaryElement);
+      }
+      
+      // Add URL if available
+      if (doc.url) {
+        const urlElement = document.createElement('div');
+        urlElement.className = 'summary-url';
+        urlElement.innerHTML = `<a href="${doc.url}" target="_blank">${doc.url}</a>`;
+        resultItem.appendChild(urlElement);
+      }
+      
+      // Add the result item to the container
+      resultsContainer.appendChild(resultItem);
+    });
+    
+    // Add the results container to the result element
+    resultElement.appendChild(resultsContainer);
+  } else {
+    // No results
+    resultElement.textContent = 'No matching documents found.';
+  }
+}
+
 // Set up ping button
 document.getElementById('pingBtn').addEventListener('click', function() {
   // Show loading spinner
@@ -230,14 +302,88 @@ document.getElementById('checkApiBtn').addEventListener('click', function() {
   });
 });
 
+// Set up search button
+document.getElementById('searchBtn').addEventListener('click', function() {
+  // Get the search query
+  const query = document.getElementById('searchInput').value.trim();
+  
+  if (!query) {
+    document.getElementById('searchResults').textContent = 'Please enter a search query.';
+    document.getElementById('searchResults').className = 'result error';
+    return;
+  }
+  
+  // Show loading spinner
+  showSpinner('searchIndicator');
+  
+  // Update button text and disable it
+  const searchBtn = document.getElementById('searchBtn');
+  const originalText = searchBtn.textContent;
+  searchBtn.textContent = 'Searching...';
+  searchBtn.disabled = true;
+  
+  // Clear previous results
+  document.getElementById('searchResults').textContent = 'Performing semantic search...';
+  
+  // Set a timeout to show additional feedback if it's taking a while
+  const slowOperationTimeout = setTimeout(() => {
+    document.getElementById('searchResults').textContent = 'Still searching... This may take a moment as we generate embeddings for your query and search the database.';
+  }, 3000);
+  
+  // Send a message to the background script
+  chrome.runtime.sendMessage(
+    { 
+      action: 'search',
+      query: query,
+      semantic: true,  // Use semantic search
+      limit: 5         // Limit to 5 results
+    },
+    function(response) {
+      // Clear the timeout
+      clearTimeout(slowOperationTimeout);
+      
+      // Reset button
+      searchBtn.textContent = originalText;
+      searchBtn.disabled = false;
+      
+      if (chrome.runtime.lastError) {
+        document.getElementById('searchResults').textContent = 'Error: ' + chrome.runtime.lastError.message;
+        document.getElementById('searchResults').className = 'result error';
+        updateStatusIndicator('searchIndicator', false);
+        return;
+      }
+      
+      if (response && response.success) {
+        // Display the search results
+        displaySearchResults(response.results);
+        updateStatusIndicator('searchIndicator', true);
+      } else {
+        document.getElementById('searchResults').textContent = 'Error performing search.';
+        document.getElementById('searchResults').className = 'result error';
+        updateStatusIndicator('searchIndicator', false);
+      }
+    }
+  );
+});
+
+// Add event listener for Enter key in search input
+document.getElementById('searchInput').addEventListener('keypress', function(event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.getElementById('searchBtn').click();
+  }
+});
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
   // Clear result areas
   document.getElementById('summaryResult').textContent = '';
+  document.getElementById('searchResults').textContent = '';
   document.getElementById('pingIndicator').innerHTML = '';
   document.getElementById('apiIndicator').innerHTML = '';
   document.getElementById('saveIndicator').innerHTML = '';
   document.getElementById('summarizeIndicator').innerHTML = '';
+  document.getElementById('searchIndicator').innerHTML = '';
   
   // Set version info
   const manifest = chrome.runtime.getManifest();

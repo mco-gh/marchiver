@@ -3,6 +3,7 @@ import random
 import hashlib
 import google.generativeai as genai
 from google.cloud import aiplatform
+from vertexai.language_models import TextEmbeddingModel
 
 from app.core.config import (
     GOOGLE_API_KEY, EMBEDDING_MODEL, GOOGLE_CLOUD_PROJECT,
@@ -28,6 +29,18 @@ class EmbeddingService:
                 location=GOOGLE_CLOUD_REGION,
             )
             self.vertex_ai_initialized = True
+            
+            # Initialize the Vertex AI text embedding model
+            # Default to textembedding-gecko@001 if not specified
+            # Make sure we're not using the old endpoint format
+            if VERTEX_AI_EMBEDDING_ENDPOINT and "." in VERTEX_AI_EMBEDDING_ENDPOINT and "vdb.vertexai.goog" in VERTEX_AI_EMBEDDING_ENDPOINT:
+                print(f"Warning: VERTEX_AI_EMBEDDING_ENDPOINT '{VERTEX_AI_EMBEDDING_ENDPOINT}' doesn't look like a valid model name. Using default model.")
+                self.vertex_embedding_model_name = "textembedding-gecko-multilingual"
+            else:
+                self.vertex_embedding_model_name = VERTEX_AI_EMBEDDING_ENDPOINT or "textembedding-gecko-multilingual"
+            
+            print(f"Using Vertex AI embedding model: {self.vertex_embedding_model_name}")
+            
         except Exception as e:
             print(f"Failed to initialize Vertex AI: {e}")
             self.vertex_ai_initialized = False
@@ -42,31 +55,46 @@ class EmbeddingService:
         Returns:
             A list of floats representing the embedding.
         """
-        # First try using Google Generative AI API
-        try:
-            if hasattr(genai, "embed_content"):
-                result = genai.embed_content(
-                    model=self.embedding_model,
-                    content=text,
-                    task_type="retrieval_document",
-                )
-                if hasattr(result, "embedding"):
-                    return result.embedding
-        except Exception as e:
-            print(f"Failed to generate embedding using Google Generative AI API: {e}")
+        # First try using Google Generative AI API with the API key
+        if GOOGLE_API_KEY:
+            try:
+                print("Attempting to generate embedding using Google Generative AI API...")
+                if hasattr(genai, "embed_content"):
+                    result = genai.embed_content(
+                        model=self.embedding_model,
+                        content=text,
+                        task_type="retrieval_document",
+                    )
+                    if hasattr(result, "embedding"):
+                        print("Successfully generated embedding using Google Generative AI API")
+                        return result.embedding
+            except Exception as e:
+                print(f"Failed to generate embedding using Google Generative AI API: {e}")
+        else:
+            print("Skipping Google Generative AI API (no API key provided)")
         
-        # Fall back to Vertex AI
+        # Fall back to Vertex AI if initialized
         if self.vertex_ai_initialized:
             try:
-                # Use Vertex AI Embeddings
-                endpoint = aiplatform.Endpoint(
-                    endpoint_name=VERTEX_AI_EMBEDDING_ENDPOINT
-                )
-                response = endpoint.predict(instances=[text])
-                if response and response.predictions and len(response.predictions) > 0:
-                    return response.predictions[0]
+                print(f"Attempting to generate embedding using Vertex AI with model {self.vertex_embedding_model_name}...")
+                # Use Vertex AI Text Embedding Model with a model we know is available
+                # Our test script confirmed these models are available
+                print("Using verified available model: text-embedding-004")
+                model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+                embeddings = model.get_embeddings([text])
+                if embeddings and len(embeddings) > 0 and embeddings[0].values:
+                    print("Successfully generated embedding using Vertex AI")
+                    return embeddings[0].values
             except Exception as e:
                 print(f"Failed to generate embedding using Vertex AI: {e}")
+                
+                # If we get a permission error, provide more helpful information
+                if "Permission" in str(e) and "denied" in str(e):
+                    print("\nPermission error detected. Please ensure that:")
+                    print("1. The service account has the 'Vertex AI User' role")
+                    print("2. The Vertex AI API is enabled for your project")
+                    print("3. The credentials file is correctly configured")
+                    print("4. The project has billing enabled\n")
         
         # If all else fails, generate a deterministic embedding based on the text content
         print("WARNING: Generating deterministic embedding based on text content")
