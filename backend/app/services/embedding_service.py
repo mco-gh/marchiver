@@ -50,15 +50,38 @@ class EmbeddingService:
         Returns:
             A list of floats representing the embedding.
         """
-        # Check text size - Google API has a limit of 36000 bytes
-        GOOGLE_API_SIZE_LIMIT = 36000  # bytes
-        text_size = len(text.encode('utf-8'))
+        # IMPORTANT: Always use Vertex AI for consistency
+        # This ensures that all embeddings (both for documents and search queries)
+        # are in the same vector space, which is essential for semantic search to work correctly.
+        # Using different embedding models for different texts can result in embeddings
+        # that are not comparable, causing semantic search to fail.
         
-        # First try using Google Generative AI API with the API key if text is within size limit
-        if GOOGLE_API_KEY and text_size <= GOOGLE_API_SIZE_LIMIT:
+        # Use Vertex AI if initialized
+        if self.vertex_ai_initialized:
             try:
-                print(f"Text size: {text_size} bytes (within Google API limit of {GOOGLE_API_SIZE_LIMIT} bytes)")
-                print("Attempting to generate embedding using Google Generative AI API...")
+                print(f"Using Vertex AI for embedding generation (for consistency)")
+                # Use Vertex AI Text Embedding Model with a model we know is available
+                model = TextEmbeddingModel.from_pretrained(self.vertex_embedding_model_name)
+                embeddings = model.get_embeddings([text])
+                if embeddings and len(embeddings) > 0 and embeddings[0].values:
+                    print("Successfully generated embedding using Vertex AI")
+                    # Resize the embedding to 768 dimensions
+                    return self._resize_embedding(embeddings[0].values, 768)
+            except Exception as e:
+                print(f"Failed to generate embedding using Vertex AI: {e}")
+                
+                # If we get a permission error, provide more helpful information
+                if "Permission" in str(e) and "denied" in str(e):
+                    print("\nPermission error detected. Please ensure that:")
+                    print("1. The service account has the 'Vertex AI User' role")
+                    print("2. The Vertex AI API is enabled for your project")
+                    print("3. The credentials file is correctly configured")
+                    print("4. The project has billing enabled\n")
+        
+        # Fall back to Google Generative AI API if Vertex AI fails or is not initialized
+        if GOOGLE_API_KEY:
+            try:
+                print(f"Falling back to Google Generative AI API for embedding generation")
                 
                 if hasattr(genai, "embed_content"):
                     # Ensure model name is correctly formatted
@@ -90,33 +113,6 @@ class EmbeddingService:
                 print(f"Failed to generate embedding using Google Generative AI API: {e}")
                 import traceback
                 traceback.print_exc()
-        elif GOOGLE_API_KEY:
-            print(f"Text size: {text_size} bytes (exceeds Google API limit of {GOOGLE_API_SIZE_LIMIT} bytes)")
-            print("Skipping Google Generative AI API due to text size limit")
-        else:
-            print("Skipping Google Generative AI API (no API key provided)")
-        
-        # Fall back to Vertex AI if initialized
-        if self.vertex_ai_initialized:
-            try:
-                print(f"Attempting to generate embedding using Vertex AI with model {self.vertex_embedding_model_name}...")
-                # Use Vertex AI Text Embedding Model with a model we know is available
-                model = TextEmbeddingModel.from_pretrained(self.vertex_embedding_model_name)
-                embeddings = model.get_embeddings([text])
-                if embeddings and len(embeddings) > 0 and embeddings[0].values:
-                    print("Successfully generated embedding using Vertex AI")
-                    # Resize the embedding to 768 dimensions
-                    return self._resize_embedding(embeddings[0].values, 768)
-            except Exception as e:
-                print(f"Failed to generate embedding using Vertex AI: {e}")
-                
-                # If we get a permission error, provide more helpful information
-                if "Permission" in str(e) and "denied" in str(e):
-                    print("\nPermission error detected. Please ensure that:")
-                    print("1. The service account has the 'Vertex AI User' role")
-                    print("2. The Vertex AI API is enabled for your project")
-                    print("3. The credentials file is correctly configured")
-                    print("4. The project has billing enabled\n")
         
         # If all else fails, generate a deterministic embedding based on the text content
         print("WARNING: Generating deterministic embedding based on text content")

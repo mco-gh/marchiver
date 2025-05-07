@@ -152,10 +152,38 @@ async def main():
         embedding = await embedding_service.generate_embedding(doc_data["content"])
         print(f"Generated embedding with {len(embedding)} dimensions")
         
-        # Create the document
-        print(f"Creating document in Firestore and Vector Search...")
-        doc = await document_service.create_document(doc_create, embedding)
-        print(f"Successfully created document with ID: {doc.id}")
+        # Check if a document with the same URL already exists
+        print(f"Checking if document with URL {doc_data['url']} already exists...")
+        existing_doc = await document_service.find_document_by_url(doc_data["url"])
+        
+        if existing_doc:
+            print(f"Document with URL {doc_data['url']} already exists with ID: {existing_doc.id}")
+            print(f"Updating existing document...")
+            
+            # Create a DocumentUpdate object with the new data
+            from app.models.document import DocumentUpdate
+            doc_update = DocumentUpdate(
+                title=doc_data["title"],
+                content=doc_data["content"],
+                summary=doc_data["summary"],
+                tags=doc_data["tags"],
+                category=doc_data["category"],
+                metadata={
+                    "source": "test_script",
+                    "test_id": f"test_{i+1}",
+                },
+                author="Test Script",
+                date=datetime.now(timezone.utc).isoformat(),
+            )
+            
+            # Update the document
+            doc = await document_service.update_document(existing_doc.id, doc_update, embedding)
+            print(f"Successfully updated document with ID: {doc.id}")
+        else:
+            # Create a new document
+            print(f"Creating new document in Firestore and Vector Search...")
+            doc = await document_service.create_document(doc_create, embedding)
+            print(f"Successfully created document with ID: {doc.id}")
     
     print("\nAll test documents added successfully!")
 
