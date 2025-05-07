@@ -31,13 +31,8 @@ class EmbeddingService:
             self.vertex_ai_initialized = True
             
             # Initialize the Vertex AI text embedding model
-            # Default to textembedding-gecko@001 if not specified
-            # Make sure we're not using the old endpoint format
-            if VERTEX_AI_EMBEDDING_ENDPOINT and "." in VERTEX_AI_EMBEDDING_ENDPOINT and "vdb.vertexai.goog" in VERTEX_AI_EMBEDDING_ENDPOINT:
-                print(f"Warning: VERTEX_AI_EMBEDDING_ENDPOINT '{VERTEX_AI_EMBEDDING_ENDPOINT}' doesn't look like a valid model name. Using default model.")
-                self.vertex_embedding_model_name = "textembedding-gecko-multilingual"
-            else:
-                self.vertex_embedding_model_name = VERTEX_AI_EMBEDDING_ENDPOINT or "textembedding-gecko-multilingual"
+            # Use the model name from the environment variable or default to a known good model
+            self.vertex_embedding_model_name = "text-embedding-004"  # Use a model we know is available
             
             print(f"Using Vertex AI embedding model: {self.vertex_embedding_model_name}")
             
@@ -55,21 +50,47 @@ class EmbeddingService:
         Returns:
             A list of floats representing the embedding.
         """
-        # First try using Google Generative AI API with the API key
-        if GOOGLE_API_KEY:
+        # Check text size - Google API has a limit of 36000 bytes
+        GOOGLE_API_SIZE_LIMIT = 36000  # bytes
+        text_size = len(text.encode('utf-8'))
+        
+        # First try using Google Generative AI API with the API key if text is within size limit
+        if GOOGLE_API_KEY and text_size <= GOOGLE_API_SIZE_LIMIT:
             try:
+                print(f"Text size: {text_size} bytes (within Google API limit of {GOOGLE_API_SIZE_LIMIT} bytes)")
                 print("Attempting to generate embedding using Google Generative AI API...")
+                
                 if hasattr(genai, "embed_content"):
+                    # Ensure model name is correctly formatted
+                    model_name = self.embedding_model
+                    if not model_name.startswith("models/") and not model_name.startswith("tunedModels/"):
+                        model_name = f"models/{model_name}"
+                    
+                    print(f"Using model name: {model_name}")
+                    
                     result = genai.embed_content(
-                        model=self.embedding_model,
+                        model=model_name,
                         content=text,
                         task_type="retrieval_document",
                     )
-                    if hasattr(result, "embedding"):
+                    
+                    # Check if result is a dictionary with an 'embedding' key
+                    if isinstance(result, dict) and 'embedding' in result:
+                        print("Successfully generated embedding using Google Generative AI API")
+                        return result['embedding']
+                    # Check if result has an embedding attribute
+                    elif hasattr(result, "embedding"):
                         print("Successfully generated embedding using Google Generative AI API")
                         return result.embedding
+                    else:
+                        print("Result does not have expected embedding format")
             except Exception as e:
                 print(f"Failed to generate embedding using Google Generative AI API: {e}")
+                import traceback
+                traceback.print_exc()
+        elif GOOGLE_API_KEY:
+            print(f"Text size: {text_size} bytes (exceeds Google API limit of {GOOGLE_API_SIZE_LIMIT} bytes)")
+            print("Skipping Google Generative AI API due to text size limit")
         else:
             print("Skipping Google Generative AI API (no API key provided)")
         
@@ -78,9 +99,7 @@ class EmbeddingService:
             try:
                 print(f"Attempting to generate embedding using Vertex AI with model {self.vertex_embedding_model_name}...")
                 # Use Vertex AI Text Embedding Model with a model we know is available
-                # Our test script confirmed these models are available
-                print("Using verified available model: text-embedding-004")
-                model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+                model = TextEmbeddingModel.from_pretrained(self.vertex_embedding_model_name)
                 embeddings = model.get_embeddings([text])
                 if embeddings and len(embeddings) > 0 and embeddings[0].values:
                     print("Successfully generated embedding using Vertex AI")
