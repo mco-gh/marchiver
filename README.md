@@ -4,7 +4,9 @@ A personal knowledge archiving and retrieval system, inspired by the Memex, that
 
 <img src="marchiver_logo.jpg" alt="Marchiver Logo" width="40%" />
 
-## Architecture Documentation
+## Documentation
+
+### Architecture Documentation
 
 Comprehensive architecture documentation is available in the [arch](./arch) directory:
 
@@ -14,6 +16,10 @@ Comprehensive architecture documentation is available in the [arch](./arch) dire
 - [Component Architecture](./arch/marchiver_component_architecture.md): Internal structure of each major component
 
 See the [Architecture Documentation README](./arch/README.md) for information on viewing and modifying the diagrams.
+
+### Feature Documentation
+
+- [Vector Search Implementation](./backend/VECTOR_SEARCH.md): Details on the implementation of vector search using Google Vertex AI Vector Search
 
 ## Overview
 

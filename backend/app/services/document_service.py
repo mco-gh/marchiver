@@ -33,14 +33,65 @@ class DocumentService:
         
         # Initialize Vertex AI Vector Search
         self.vector_search_initialized = False
+        self.index = None
+        self.index_endpoint = None
+        self.deployed_index_id = VERTEX_AI_INDEX  # This is the ID of the deployed index
+        
         try:
             aiplatform.init(
                 project=GOOGLE_CLOUD_PROJECT,
                 location=GOOGLE_CLOUD_REGION,
             )
-            self.vector_search_initialized = True
-            self.index_endpoint_name = VERTEX_AI_INDEX_ENDPOINT
-            self.index_name = VERTEX_AI_INDEX
+            
+            # Initialize the index endpoint
+            try:
+                self.index_endpoint = aiplatform.MatchingEngineIndexEndpoint(index_endpoint_name=VERTEX_AI_INDEX_ENDPOINT)
+                print(f"Successfully initialized MatchingEngineIndexEndpoint with name: {self.index_endpoint.name}")
+                
+                # Get the actual index resource name from the deployed indexes
+                if hasattr(self.index_endpoint, 'deployed_indexes') and self.index_endpoint.deployed_indexes:
+                    for deployed_index in self.index_endpoint.deployed_indexes:
+                        if isinstance(deployed_index, dict) and 'id' in deployed_index and deployed_index['id'] == self.deployed_index_id:
+                            # Found the deployed index with the matching ID
+                            if 'index' in deployed_index:
+                                actual_index_name = deployed_index['index']
+                                print(f"Found actual index resource name: {actual_index_name}")
+                                
+                                # Initialize the index with the actual resource name
+                                try:
+                                    self.index = aiplatform.MatchingEngineIndex(index_name=actual_index_name)
+                                    print(f"Successfully initialized MatchingEngineIndex with name: {self.index.name}")
+                                    self.vector_search_initialized = True
+                                except Exception as e:
+                                    print(f"Failed to initialize MatchingEngineIndex with actual resource name: {e}")
+                                    self.index = None
+                                
+                                break
+                
+                # If we couldn't find the actual index resource name, try to list all indexes
+                if self.index is None:
+                    try:
+                        indexes = aiplatform.MatchingEngineIndex.list()
+                        if indexes and len(indexes) > 0:
+                            # Use the first index
+                            self.index = indexes[0]
+                            print(f"Using first available index: {self.index.name}")
+                            self.vector_search_initialized = True
+                    except Exception as e:
+                        print(f"Failed to list indexes: {e}")
+                        self.index = None
+            except Exception as e:
+                print(f"Failed to initialize MatchingEngineIndexEndpoint: {e}")
+                self.index_endpoint = None
+            
+            # Check if both index and index endpoint are initialized
+            if self.index is None or self.index_endpoint is None:
+                print("Vector search is not fully initialized. Some operations may not work.")
+                if self.index_endpoint is not None:
+                    print("Only search operations will be available.")
+                    self.vector_search_initialized = True
+                else:
+                    self.vector_search_initialized = False
         except Exception as e:
             print(f"Failed to initialize Vertex AI Vector Search: {e}")
     
@@ -247,36 +298,136 @@ class DocumentService:
     
     def _add_embedding_to_vector_search(self, document_id: str, embedding: List[float]) -> None:
         """Add an embedding to Vector Search."""
-        if not self.vector_search_initialized:
+        if not self.vector_search_initialized or self.index is None:
+            print("Vector search is not fully initialized. Cannot add embedding.")
             return
         
-        # This is a placeholder for the actual implementation
-        # In a real implementation, you would use the Vertex AI Vector Search API
-        pass
+        try:
+            # Import the necessary types
+            from google.cloud.aiplatform_v1.types.index_service import UpsertDatapointsRequest
+            from google.cloud.aiplatform_v1.types.index import IndexDatapoint
+            
+            # Create an IndexDatapoint object
+            datapoint = IndexDatapoint(
+                datapoint_id=document_id,
+                feature_vector=embedding,
+            )
+            
+            # Create the request
+            request = UpsertDatapointsRequest(
+                index=self.index.resource_name,
+                datapoints=[datapoint],
+            )
+            
+            # Call the API
+            self.index.api_client.upsert_datapoints(request)
+            print(f"Successfully added embedding for document {document_id} to Vector Search")
+        except Exception as e:
+            print(f"Error adding embedding to Vector Search: {e}")
+            print(f"Error details: {str(e)}")
+            print("WARNING: Could not add embedding to Vector Search. Document will be saved without vector search capability.")
     
     def _update_embedding_in_vector_search(self, document_id: str, embedding: List[float]) -> None:
         """Update an embedding in Vector Search."""
         if not self.vector_search_initialized:
             return
         
-        # This is a placeholder for the actual implementation
-        # In a real implementation, you would use the Vertex AI Vector Search API
-        pass
+        # For Vertex AI Vector Search, updating is the same as adding (upsert operation)
+        self._add_embedding_to_vector_search(document_id, embedding)
     
     def _delete_embedding_from_vector_search(self, document_id: str) -> None:
         """Delete an embedding from Vector Search."""
-        if not self.vector_search_initialized:
+        if not self.vector_search_initialized or self.index is None:
+            print("Vector search is not fully initialized. Cannot delete embedding.")
             return
         
-        # This is a placeholder for the actual implementation
-        # In a real implementation, you would use the Vertex AI Vector Search API
-        pass
+        try:
+            # Import the necessary types
+            from google.cloud.aiplatform_v1.types.index_service import RemoveDatapointsRequest
+            
+            # Create the request
+            request = RemoveDatapointsRequest(
+                index=self.index.resource_name,
+                datapoint_ids=[document_id],
+            )
+            
+            # Call the API
+            self.index.api_client.remove_datapoints(request)
+            print(f"Successfully deleted embedding for document {document_id} from Vector Search")
+        except Exception as e:
+            print(f"Error deleting embedding from Vector Search: {e}")
+            print(f"Error details: {str(e)}")
+            print("WARNING: Could not delete embedding from Vector Search. Document will be deleted from Firestore only.")
     
     def _find_similar_embeddings(self, embedding: List[float], limit: int = 10) -> List[str]:
         """Find similar embeddings in Vector Search."""
-        if not self.vector_search_initialized:
+        if not self.vector_search_initialized or self.index_endpoint is None:
+            print("Vector search is not fully initialized. Cannot find similar embeddings.")
             return []
         
-        # This is a placeholder for the actual implementation
-        # In a real implementation, you would use the Vertex AI Vector Search API
-        return []
+        try:
+            # Use the MatchingEngineIndexEndpoint class to find similar embeddings
+            # According to our check, this class has the find_neighbors method
+            response = self.index_endpoint.find_neighbors(
+                deployed_index_id=self.deployed_index_id,  # Use the deployed index ID, not the index name
+                queries=[embedding],
+                num_neighbors=limit,
+            )
+            
+            # Extract document IDs from the response
+            if response and len(response) > 0:
+                # The response format might be different depending on the API version
+                # Try different ways to extract the neighbors
+                if hasattr(response[0], 'neighbors'):
+                    # Return the document IDs of the nearest neighbors
+                    return [neighbor.id for neighbor in response[0].neighbors]
+                elif isinstance(response[0], dict) and 'neighbors' in response[0]:
+                    # Alternative format where response is a list of dicts
+                    return [neighbor['id'] for neighbor in response[0]['neighbors']]
+                elif isinstance(response, dict) and 'results' in response:
+                    # Another possible format
+                    return [neighbor['id'] for neighbor in response['results'][0]['neighbors']]
+            
+            print("\nDetailed response information:")
+            print(f"Response type: {type(response)}")
+            print(f"Response: {response}")
+            
+            if response:
+                print(f"Response length: {len(response)}")
+                if len(response) > 0:
+                    print(f"First item type: {type(response[0])}")
+                    print(f"First item: {response[0]}")
+                    
+                    # Try to print attributes or keys
+                    if hasattr(response[0], '__dict__'):
+                        print(f"First item attributes: {response[0].__dict__}")
+                    elif isinstance(response[0], dict):
+                        print(f"First item keys: {response[0].keys()}")
+            return []
+        except Exception as e:
+            print(f"Error finding similar embeddings in Vector Search: {e}")
+            
+            # Try alternative method name
+            try:
+                # Some API versions use match instead of find_neighbors
+                response = self.index_endpoint.match(
+                    deployed_index_id=self.deployed_index_id,  # Use the deployed index ID, not the index name
+                    queries=[embedding],
+                    num_neighbors=limit,
+                )
+                
+                # Extract document IDs from the response
+                if response and len(response) > 0:
+                    # Try different ways to extract the neighbors
+                    if hasattr(response[0], 'neighbors'):
+                        return [neighbor.id for neighbor in response[0].neighbors]
+                    elif isinstance(response[0], dict) and 'neighbors' in response[0]:
+                        return [neighbor['id'] for neighbor in response[0]['neighbors']]
+                
+                print("Warning: Could not extract neighbors from response format (match method)")
+                print(f"Response: {response}")
+                return []
+            except Exception as e2:
+                print(f"Error using match method: {e2}")
+                print("WARNING: Could not find similar embeddings in Vector Search. Returning empty list.")
+                return []

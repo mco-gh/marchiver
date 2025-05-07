@@ -77,11 +77,13 @@ class EmbeddingService:
                     # Check if result is a dictionary with an 'embedding' key
                     if isinstance(result, dict) and 'embedding' in result:
                         print("Successfully generated embedding using Google Generative AI API")
-                        return result['embedding']
+                        # Resize the embedding to 768 dimensions
+                        return self._resize_embedding(result['embedding'], 768)
                     # Check if result has an embedding attribute
                     elif hasattr(result, "embedding"):
                         print("Successfully generated embedding using Google Generative AI API")
-                        return result.embedding
+                        # Resize the embedding to 768 dimensions
+                        return self._resize_embedding(result.embedding, 768)
                     else:
                         print("Result does not have expected embedding format")
             except Exception as e:
@@ -103,7 +105,8 @@ class EmbeddingService:
                 embeddings = model.get_embeddings([text])
                 if embeddings and len(embeddings) > 0 and embeddings[0].values:
                     print("Successfully generated embedding using Vertex AI")
-                    return embeddings[0].values
+                    # Resize the embedding to 768 dimensions
+                    return self._resize_embedding(embeddings[0].values, 768)
             except Exception as e:
                 print(f"Failed to generate embedding using Vertex AI: {e}")
                 
@@ -118,6 +121,34 @@ class EmbeddingService:
         # If all else fails, generate a deterministic embedding based on the text content
         print("WARNING: Generating deterministic embedding based on text content")
         return self._create_deterministic_embedding(text)
+    
+    def _resize_embedding(self, embedding: List[float], target_size: int) -> List[float]:
+        """
+        Resize an embedding to the target size.
+        
+        If the embedding is smaller than the target size, it will be padded with zeros.
+        If the embedding is larger than the target size, it will be truncated.
+        
+        Args:
+            embedding: The embedding to resize.
+            target_size: The target size of the embedding.
+            
+        Returns:
+            A list of floats representing the resized embedding.
+        """
+        current_size = len(embedding)
+        
+        if current_size == target_size:
+            # No resizing needed
+            return embedding
+        elif current_size < target_size:
+            # Pad with zeros
+            print(f"Padding embedding from {current_size} to {target_size} dimensions")
+            return embedding + [0.0] * (target_size - current_size)
+        else:
+            # Truncate
+            print(f"Truncating embedding from {current_size} to {target_size} dimensions")
+            return embedding[:target_size]
     
     def _create_deterministic_embedding(self, text: str) -> List[float]:
         """
@@ -137,7 +168,7 @@ class EmbeddingService:
         random.seed(text_hash)
         
         # Generate a random embedding
-        embedding_size = 768  # Common embedding dimension
+        embedding_size = 768  # Match the dimension of the Vector Search index
         embedding = [random.uniform(-1, 1) for _ in range(embedding_size)]
         
         # Normalize the embedding to unit length
@@ -147,4 +178,4 @@ class EmbeddingService:
             return normalized_embedding
         
         # Fallback if magnitude is zero
-        return [0.0] * embedding_size
+        return [0.0] * embedding_size  # 768 dimensions
