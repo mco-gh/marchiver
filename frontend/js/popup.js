@@ -32,13 +32,29 @@ function hideSpinner(elementId) {
   indicator.innerHTML = '';
 }
 
+// Function to toggle collapsible sections
+function toggleCollapsible(headerId, contentId) {
+  const header = document.getElementById(headerId);
+  const content = document.getElementById(contentId);
+  
+  if (header.classList.contains('collapsed')) {
+    // Expand
+    header.classList.remove('collapsed');
+    content.style.display = 'block';
+  } else {
+    // Collapse
+    header.classList.add('collapsed');
+    content.style.display = 'none';
+  }
+}
+
 // Function to display a summary in a user-friendly way
 function displaySummary(response) {
   const resultElement = document.getElementById('summaryResult');
   
   // Clear previous content
   resultElement.innerHTML = '';
-  resultElement.className = 'result success';
+  resultElement.className = 'result collapsible-content success';
   
   if (response && response.document && response.document.summary) {
     // Create title element
@@ -68,6 +84,11 @@ function displaySummary(response) {
       idElement.innerHTML = `<strong>Document ID:</strong> ${response.document.id}`;
       resultElement.appendChild(idElement);
     }
+    
+    // Make sure the summary header is visible and expanded
+    const summaryHeader = document.getElementById('summaryHeader');
+    summaryHeader.style.display = 'flex';
+    summaryHeader.classList.remove('collapsed');
   } else {
     // No summary available
     resultElement.textContent = 'No summary available in the response.';
@@ -80,7 +101,7 @@ function displaySearchResults(results) {
   
   // Clear previous content
   resultElement.innerHTML = '';
-  resultElement.className = 'result success';
+  resultElement.className = 'result collapsible-content success';
   
   if (results && results.length > 0) {
     // Create a header
@@ -140,6 +161,11 @@ function displaySearchResults(results) {
     
     // Add the results container to the result element
     resultElement.appendChild(resultsContainer);
+    
+    // Make sure the search header is visible and expanded
+    const searchHeader = document.getElementById('searchHeader');
+    searchHeader.style.display = 'flex';
+    searchHeader.classList.remove('collapsed');
   } else {
     // No results
     resultElement.textContent = 'No matching documents found.';
@@ -217,7 +243,7 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
   chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
     if (!tabs || tabs.length === 0) {
       document.getElementById('summaryResult').textContent = 'Error: No active tab found';
-      document.getElementById('summaryResult').className = 'result error';
+      document.getElementById('summaryResult').className = 'result collapsible-content error';
       updateStatusIndicator('summarizeIndicator', false);
       return;
     }
@@ -248,7 +274,7 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
         
         if (chrome.runtime.lastError) {
           document.getElementById('summaryResult').textContent = 'Error: ' + chrome.runtime.lastError.message;
-          document.getElementById('summaryResult').className = 'result error';
+          document.getElementById('summaryResult').className = 'result collapsible-content error';
           updateStatusIndicator('summarizeIndicator', false);
           return;
         }
@@ -259,7 +285,7 @@ document.getElementById('summarizeBtn').addEventListener('click', function() {
           updateStatusIndicator('summarizeIndicator', true);
         } else {
           document.getElementById('summaryResult').textContent = 'Error summarizing page.';
-          document.getElementById('summaryResult').className = 'result error';
+          document.getElementById('summaryResult').className = 'result collapsible-content error';
           updateStatusIndicator('summarizeIndicator', false);
         }
       }
@@ -309,7 +335,7 @@ document.getElementById('searchBtn').addEventListener('click', function() {
   
   if (!query) {
     document.getElementById('searchResults').textContent = 'Please enter a search query.';
-    document.getElementById('searchResults').className = 'result error';
+    document.getElementById('searchResults').className = 'result collapsible-content error';
     return;
   }
   
@@ -348,7 +374,7 @@ document.getElementById('searchBtn').addEventListener('click', function() {
       
       if (chrome.runtime.lastError) {
         document.getElementById('searchResults').textContent = 'Error: ' + chrome.runtime.lastError.message;
-        document.getElementById('searchResults').className = 'result error';
+        document.getElementById('searchResults').className = 'result collapsible-content error';
         updateStatusIndicator('searchIndicator', false);
         return;
       }
@@ -359,7 +385,7 @@ document.getElementById('searchBtn').addEventListener('click', function() {
         updateStatusIndicator('searchIndicator', true);
       } else {
         document.getElementById('searchResults').textContent = 'Error performing search.';
-        document.getElementById('searchResults').className = 'result error';
+        document.getElementById('searchResults').className = 'result collapsible-content error';
         updateStatusIndicator('searchIndicator', false);
       }
     }
@@ -374,6 +400,39 @@ document.getElementById('searchInput').addEventListener('keypress', function(eve
   }
 });
 
+// Set up collapsible headers
+function setupCollapsibleHeaders() {
+  // Summary header
+  const summaryHeader = document.getElementById('summaryHeader');
+  if (summaryHeader) {
+    summaryHeader.addEventListener('click', function() {
+      toggleCollapsible('summaryHeader', 'summaryResult');
+    });
+    
+    // Initially hide if empty
+    const summaryResult = document.getElementById('summaryResult');
+    if (!summaryResult.textContent.trim()) {
+      summaryHeader.classList.add('collapsed');
+      summaryResult.style.display = 'none';
+    }
+  }
+  
+  // Search header
+  const searchHeader = document.getElementById('searchHeader');
+  if (searchHeader) {
+    searchHeader.addEventListener('click', function() {
+      toggleCollapsible('searchHeader', 'searchResults');
+    });
+    
+    // Initially hide if empty
+    const searchResults = document.getElementById('searchResults');
+    if (!searchResults.textContent.trim()) {
+      searchHeader.classList.add('collapsed');
+      searchResults.style.display = 'none';
+    }
+  }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
   // Clear result areas
@@ -384,6 +443,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('saveIndicator').innerHTML = '';
   document.getElementById('summarizeIndicator').innerHTML = '';
   document.getElementById('searchIndicator').innerHTML = '';
+  
+  // Set up collapsible headers
+  setupCollapsibleHeaders();
   
   // Set version info
   const manifest = chrome.runtime.getManifest();

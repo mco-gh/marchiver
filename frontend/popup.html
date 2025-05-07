@@ -5,29 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Marchiver</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       width: 320px;
       padding: 15px;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
     }
     h1 {
       font-size: 18px;
       color: #333;
       margin-top: 0;
+      width: 100%;
     }
     .section {
       margin-bottom: 20px;
+      width: 100%;
     }
     .section-title {
       font-size: 16px;
       font-weight: 600;
       margin-bottom: 10px;
       color: #444;
+      width: 100%;
+    }
+    .section-subtitle {
+      font-size: 14px;
+      font-weight: 500;
+      color: #555;
     }
     .button-container, .search-container {
       display: flex;
       align-items: center;
       margin-bottom: 10px;
+      width: 100%;
     }
     .search-input {
       flex-grow: 1;
@@ -99,6 +112,7 @@
       justify-content: center;
       font-size: 16px;
       font-weight: bold;
+      flex-shrink: 0;
     }
     .check {
       color: #4CAF50;
@@ -118,8 +132,11 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .result-container {
+      width: 100%;
+    }
     .result {
-      margin-top: 15px;
+      margin-top: 0;
       padding: 10px;
       border-radius: 4px;
       background-color: #f5f5f5;
@@ -127,6 +144,7 @@
       overflow-y: auto;
       word-break: break-word;
       border: 1px solid #ddd;
+      width: 100%;
     }
     .summary-title {
       font-weight: bold;
@@ -159,12 +177,51 @@
       margin-top: 10px;
       display: flex;
       justify-content: space-between;
+      width: 100%;
     }
     .success {
       color: #4CAF50;
     }
     .error {
       color: #f44336;
+    }
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      background-color: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 2px;
+      cursor: pointer;
+      user-select: none;
+      width: 100%;
+    }
+    .collapsible-header:hover {
+      background-color: #e8e8e8;
+    }
+    .toggle-icon {
+      font-size: 12px;
+      transition: transform 0.3s ease;
+    }
+    .collapsed .toggle-icon {
+      transform: rotate(-90deg);
+    }
+    .collapsible-content {
+      display: block;
+      transition: max-height 0.3s ease;
+      margin-top: 0;
+      border-top: none;
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+    .collapsed + .collapsible-content {
+      display: none;
+    }
+    .spacer {
+      height: 15px;
+      width: 100%;
     }
   </style>
 </head>
@@ -174,14 +231,19 @@
   <div class="section">
     <div class="section-title">Current Page Actions</div>
     <div class="button-container">
-      <button id="saveBtn" class="secondary">Save Current Page</button>
-      <div id="saveIndicator" class="status-indicator"></div>
-    </div>
-    <div class="button-container">
       <button id="summarizeBtn" class="tertiary">Summarize Current Page</button>
       <div id="summarizeIndicator" class="status-indicator"></div>
     </div>
-    <div id="summaryResult" class="result"></div>
+    <div class="collapsible-header" id="summaryHeader">
+      <span class="section-subtitle">Summary</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div id="summaryResult" class="result collapsible-content"></div>
+    <div class="spacer"></div>
+    <div class="button-container">
+      <button id="saveBtn" class="secondary">Save Current Page</button>
+      <div id="saveIndicator" class="status-indicator"></div>
+    </div>
   </div>
   
   <div class="section">
@@ -191,7 +253,11 @@
       <button id="searchBtn" class="search-button">Search</button>
       <div id="searchIndicator" class="status-indicator"></div>
     </div>
-    <div id="searchResults" class="result"></div>
+    <div class="collapsible-header" id="searchHeader">
+      <span class="section-subtitle">Search Results</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div id="searchResults" class="result collapsible-content"></div>
   </div>
   
   <div class="section">
