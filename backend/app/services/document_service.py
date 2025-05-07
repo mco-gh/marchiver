@@ -315,7 +315,7 @@ class DocumentService:
             
             # Create the request
             request = UpsertDatapointsRequest(
-                index=self.index.resource_name,
+                index="projects/1082996892307/locations/us-central1/indexes/5627179564678512640",  # Use the 768d index directly
                 datapoints=[datapoint],
             )
             
@@ -347,7 +347,7 @@ class DocumentService:
             
             # Create the request
             request = RemoveDatapointsRequest(
-                index=self.index.resource_name,
+                index="projects/1082996892307/locations/us-central1/indexes/5627179564678512640",  # Use the 768d index directly
                 datapoint_ids=[document_id],
             )
             
@@ -369,7 +369,7 @@ class DocumentService:
             # Use the MatchingEngineIndexEndpoint class to find similar embeddings
             # According to our check, this class has the find_neighbors method
             response = self.index_endpoint.find_neighbors(
-                deployed_index_id=self.deployed_index_id,  # Use the deployed index ID, not the index name
+                deployed_index_id="marchiver_streaming_768d_1746631997838",  # Use the correct deployed index ID
                 queries=[embedding],
                 num_neighbors=limit,
             )
@@ -387,6 +387,9 @@ class DocumentService:
                 elif isinstance(response, dict) and 'results' in response:
                     # Another possible format
                     return [neighbor['id'] for neighbor in response['results'][0]['neighbors']]
+                elif isinstance(response[0], list):
+                    # Format from the test output: a list of MatchNeighbor objects
+                    return [neighbor.id for neighbor in response[0]]
             
             print("\nDetailed response information:")
             print(f"Response type: {type(response)}")

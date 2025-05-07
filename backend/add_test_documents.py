@@ -24,6 +24,8 @@ async def main():
     
     # Check if vector search is initialized
     print(f"\nVector search initialized: {document_service.vector_search_initialized}")
+    print(f"Index endpoint: {document_service.index_endpoint.name if document_service.index_endpoint else 'None'}")
+    print(f"Deployed index ID: {document_service.deployed_index_id}")
     
     # Test documents
     test_documents = [
@@ -142,7 +144,7 @@ async def main():
                 "test_id": f"test_{i+1}",
             },
             author="Test Script",
-            date=datetime.now(timezone.utc),
+            date=datetime.now(timezone.utc).isoformat(),
         )
         
         # Generate embedding for the document

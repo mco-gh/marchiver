@@ -24,7 +24,7 @@ def main():
     )
     
     # The resource name of the new index
-    new_index_resource_name = "projects/1082996892307/locations/us-central1/indexes/5613668765796401152"
+    new_index_resource_name = "projects/1082996892307/locations/us-central1/indexes/5627179564678512640"
     
     print(f"\nLoading the new index: {new_index_resource_name}")
     try:

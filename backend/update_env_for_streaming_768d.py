@@ -44,7 +44,7 @@ def main():
     # Update the VERTEX_AI_INDEX value
     new_env_content = re.sub(
         r'VERTEX_AI_INDEX=.*',
-        'VERTEX_AI_INDEX=marchiver_streaming_768d',
+        'VERTEX_AI_INDEX=marchiver_streaming_768d_1746631997838',
         env_content
     )
     
@@ -53,7 +53,7 @@ def main():
         f.write(new_env_content)
     
     print(f"Updated .env file at {env_path}")
-    print("VERTEX_AI_INDEX is now set to 'marchiver_streaming_768d'")
+    print("VERTEX_AI_INDEX is now set to 'marchiver_streaming_768d_1746631997838'")
 
 if __name__ == "__main__":
     main()

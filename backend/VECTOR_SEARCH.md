@@ -1,123 +1,152 @@
 # Vector Search Implementation
 
-This document describes the implementation of vector search in the Marchiver application using Google Vertex AI Vector Search.
+This document explains how vector search is implemented in the Marchiver application using Google Vertex AI Vector Search.
 
 ## Overview
 
-Vector search allows for semantic search capabilities, finding documents that are conceptually similar to a query even if they don't share the exact same keywords. This is achieved by:
+Vector search allows for semantic searching of documents based on the meaning of the text rather than just keyword matching. This is achieved by converting text into high-dimensional vectors (embeddings) and finding the nearest neighbors in the vector space.
 
-1. Converting text into high-dimensional vectors (embeddings) that capture semantic meaning
-2. Storing these vectors in a specialized index optimized for nearest-neighbor search
-3. Finding the closest vectors to a query vector when performing a search
+## Components
 
-## Implementation Details
+### 1. Embedding Generation
 
-### Index Configuration
+The `EmbeddingService` class in `backend/app/services/embedding_service.py` is responsible for generating embeddings for documents and search queries. It uses Google's Generative AI API to generate 768-dimensional embeddings.
 
-The application uses a 768-dimensional vector index with the following configuration:
+```python
+async def generate_embedding(self, text: str) -> List[float]:
+    """Generate an embedding for the given text."""
+    # Generate embedding using Google Generative AI API
+    embedding = await self._generate_embedding_with_genai(text)
+    return embedding
+```
+
+### 2. Vector Index
+
+We use Google Vertex AI Vector Search to store and search embeddings. The index is configured with the following parameters:
 
 - Dimensions: 768
 - Distance measure: DOT_PRODUCT_DISTANCE
-- Approximate neighbors count: 5
-- Leaf node embedding count: 1000
-- Leaf nodes to search percent: 5
-- Streaming updates enabled
+- Streaming updates: Enabled
 
-### Embedding Generation
+### 3. Document Service
 
-Embeddings are generated using one of the following methods (in order of preference):
+The `DocumentService` class in `backend/app/services/document_service.py` handles the interaction with the vector search index:
 
-1. Google Generative AI API (if API key is provided and text is within size limits)
-2. Vertex AI Text Embedding Model (text-embedding-004)
-3. Deterministic embedding generation (fallback)
+- Adding embeddings to the index when documents are created
+- Updating embeddings when documents are modified
+- Removing embeddings when documents are deleted
+- Searching for similar documents using the index
 
-All embeddings are resized to 768 dimensions to match the index configuration.
+```python
+async def semantic_search(self, query_embedding: List[float], limit: int = 10, offset: int = 0) -> List[Document]:
+    """Perform semantic search using the query embedding."""
+    similar_doc_ids = self._find_similar_embeddings(query_embedding, limit + offset)
+    docs = []
+    for doc_id in similar_doc_ids[offset:]:
+        doc = await self.get_document(doc_id)
+        if doc:
+            docs.append(doc)
+    return docs
+```
 
-### Search Process
+### 4. API Routes
 
-When a user performs a search with semantic search enabled:
+The API routes in `backend/app/api/routes.py` expose the vector search functionality through the `/documents` endpoint with the `semantic=true` parameter:
 
-1. The search query is converted to a 768-dimensional embedding
-2. The embedding is used to find the nearest neighbors in the vector index
-3. The corresponding documents are retrieved from Firestore
-4. The results are returned to the user
+```python
+@router.get("/documents", response_model=List[Document])
+async def search_documents(
+    query: Optional[str] = None,
+    semantic: bool = False,
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Search for documents."""
+    if query and semantic:
+        # Generate embedding for the query
+        query_embedding = await embedding_service.generate_embedding(query)
+        
+        # Perform semantic search
+        return await document_service.semantic_search(query_embedding, limit, offset)
+    
+    # ... other search methods ...
+```
 
-## Setup and Test Scripts
+### 5. Chrome Extension Integration
 
-The following scripts are provided to set up and test vector search:
+The Chrome extension's popup interface in `frontend/js/popup.js` allows users to perform semantic searches:
 
-### Setup Scripts
+```javascript
+chrome.runtime.sendMessage(
+  { 
+    action: 'search',
+    query: query,
+    semantic: true,  // Use semantic search
+    limit: 5         // Limit to 5 results
+  },
+  function(response) {
+    // Handle response...
+  }
+);
+```
 
-- `create_streaming_index.py`: Creates a new 768-dimensional index with streaming updates enabled
-- `deploy_streaming_index.py`: Deploys the index to the index endpoint
-- `update_env_for_streaming_768d.py`: Updates the .env file to use the new index
+The background script in `frontend/js/background.js` forwards these requests to the API:
 
-### Test Scripts
+```javascript
+const searchUrl = new URL(`${API_BASE_URL}/documents`);
+if (query) {
+  searchUrl.searchParams.append('query', query);
+  searchUrl.searchParams.append('semantic', semantic);
+}
+```
 
-- `test_768d_search.py`: Tests the vector search functionality with the new 768-dimensional index
-  - Initializes the document and embedding services
-  - Generates an embedding for a test query
-  - Performs semantic search using the query embedding
-  - Displays the search results
+## Setup and Configuration
 
-- `add_test_documents.py`: Adds test documents to the index
-  - Creates sample documents with relevant content for testing
-  - Generates embeddings for each document
-  - Adds the documents and their embeddings to Firestore and the vector index
+### Environment Variables
 
-### Other Test Files in the Project
+The following environment variables are used to configure the vector search:
 
-- `test_all_services.py`: Tests all services in the application (not specific to vector search)
-- `test_api.py`: Tests the API endpoints
-- `test_api_mock.py`: Tests the API endpoints with mock services
-- `test_embedding.py`: Tests the embedding service
-- `test_vector_search.py`: Tests the vector search functionality (general test, not specific to 768d)
+- `GOOGLE_CLOUD_PROJECT`: The Google Cloud project ID
+- `GOOGLE_CLOUD_REGION`: The Google Cloud region (e.g., us-central1)
+- `VERTEX_AI_INDEX_ENDPOINT`: The Vertex AI index endpoint resource name
+- `VERTEX_AI_INDEX`: The ID of the deployed index
 
-## Usage
+### Index Creation and Deployment
 
-To set up vector search:
+The index is created and deployed using the following scripts:
 
-1. Create the index:
-   ```
-   python backend/create_streaming_index.py
-   ```
+1. `backend/create_768d_index.py`: Creates a new 768-dimensional index
+2. `backend/deploy_768d_index.py`: Deploys the index to the index endpoint
+3. `backend/update_env_for_768d.py`: Updates the .env file with the new index ID
 
-2. Deploy the index:
-   ```
-   python backend/deploy_streaming_index.py
-   ```
+For streaming updates, use these scripts:
 
-3. Update the .env file:
-   ```
-   python backend/update_env_for_streaming_768d.py
-   ```
+1. `backend/create_streaming_index.py`: Creates a new index with streaming updates enabled
+2. `backend/deploy_streaming_index.py`: Deploys the streaming index to the index endpoint
+3. `backend/update_env_for_streaming_768d.py`: Updates the .env file with the new streaming index ID
 
-4. Add test documents:
-   ```
-   python backend/add_test_documents.py
-   ```
+## Testing
 
-5. Test the search functionality:
-   ```
-   python backend/test_768d_search.py
-   ```
+You can test the vector search functionality using the following scripts:
 
-## Frontend Integration
-
-The Chrome extension popup already supports vector search. When a user enters a search query and clicks the search button, the application performs a semantic search by default.
-
-## API Endpoints
-
-The following API endpoints support vector search:
-
-- `GET /api/documents?query={query}&semantic=true`: Performs a semantic search using the provided query
-- `GET /api/documents/{document_id}/similar`: Finds documents similar to the specified document
+1. `backend/add_test_documents.py`: Adds test documents to the index
+2. `backend/test_768d_search.py`: Tests the vector search with a sample query
+3. `backend/test_popup_search.py`: Simulates the Chrome extension popup search
 
 ## Troubleshooting
 
-If vector search is not working as expected:
+If you encounter issues with vector search, check the following:
 
-1. Check that the index is created and deployed correctly
-2. Verify that the VERTEX_AI_INDEX environment variable is set to the correct index ID
-3. Ensure that the embeddings are being generated with the correct dimensions (768)
-4. Check the logs for any errors related to vector search
+1. Ensure the correct index ID is set in the .env file
+2. Verify that the index dimensions match the embedding dimensions (768)
+3. Check that the index endpoint is correctly configured
+4. Ensure the Google Cloud credentials are properly set up
+
+## Future Improvements
+
+Potential improvements to the vector search functionality:
+
+1. Implement hybrid search (combining vector search with keyword search)
+2. Add filtering capabilities (e.g., by date, category, tags)
+3. Optimize embedding generation for better performance
+4. Implement caching for frequently searched queries
