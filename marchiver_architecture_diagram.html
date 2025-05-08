@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marchiver Architecture Diagram</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2A56C6;
+            border-bottom: 2px solid #4285F4;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #0F9D58;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #F9AB00;
+        }
+        .mermaid {
+            margin: 30px 0;
+        }
+        .component-description {
+            background-color: #f9f9f9;
+            border-left: 4px solid #4285F4;
+            padding: 10px 20px;
+            margin: 20px 0;
+        }
+        strong {
+            color: #C5221F;
+        }
+    </style>
+</head>
+<body>
+    <h1>Marchiver Architecture Diagram</h1>
+    
+    <div class="mermaid">
+        flowchart TD
+            %% Define styles for components
+            classDef chromeExt fill:#4285F4,stroke:#2A56C6,color:white,stroke-width:2px
+            classDef backend fill:#34A853,stroke:#0F9D58,color:white,stroke-width:2px
+            classDef googleServices fill:#FBBC05,stroke:#F9AB00,color:black,stroke-width:2px
+            classDef externalWeb fill:#EA4335,stroke:#C5221F,color:white,stroke-width:2px
+            
+            %% Main components
+            user([User])
+            
+            %% Chrome Extension components
+            subgraph ChromeExtension["Chrome Extension"]
+                direction TB
+                popup[Popup UI]
+                docViewer[Document Viewer]
+                options[Options Page]
+                background[Background Service]
+                content[Content Scripts]
+            end
+            
+            %% Backend components
+            subgraph Backend["FastAPI Backend"]
+                direction TB
+                api[API Layer]
+                docService[Document Service]
+                embedService[Embedding Service]
+                sumService[Summarization Service]
+                webService[Web Service]
+            end
+            
+            %% External services
+            subgraph GoogleCloud["Google Cloud Services"]
+                direction TB
+                firestore[(Firestore DB)]
+                vectorSearch[(Vertex AI Vector Search)]
+                genAI[Generative AI]
+            end
+            
+            externalWeb[External Websites]
+            
+            %% Connections
+            user --> ChromeExtension
+            ChromeExtension --> Backend
+            Backend --> GoogleCloud
+            webService --> externalWeb
+            
+            %% Apply styles
+            class ChromeExtension chromeExt
+            class Backend backend
+            class GoogleCloud googleServices
+            class externalWeb externalWeb
+    </div>
+
+    <h2>Key Components</h2>
+
+    <h3>Chrome Extension</h3>
+    <div class="component-description">
+        <p><strong>Popup UI:</strong> Main interface for searching and saving content</p>
+        <p><strong>Document Viewer:</strong> Displays archived content with tabs for content and summary</p>
+        <p><strong>Options Page:</strong> Configuration interface for user preferences</p>
+        <p><strong>Background Service:</strong> Handles background tasks and API communication</p>
+        <p><strong>Content Scripts:</strong> Extract content from web pages</p>
+    </div>
+
+    <h3>FastAPI Backend</h3>
+    <div class="component-description">
+        <p><strong>API Layer:</strong> RESTful endpoints for all core functionalities</p>
+        <p><strong>Document Service:</strong> Manages document operations and search</p>
+        <p><strong>Embedding Service:</strong> Generates vector embeddings for semantic search</p>
+        <p><strong>Summarization Service:</strong> Creates document summaries using AI</p>
+        <p><strong>Web Service:</strong> Fetches and processes web content</p>
+    </div>
+
+    <h3>Google Cloud Services</h3>
+    <div class="component-description">
+        <p><strong>Firestore DB:</strong> Document storage database</p>
+        <p><strong>Vertex AI Vector Search:</strong> Vector database for semantic search</p>
+        <p><strong>Generative AI:</strong> Provides embedding and summarization capabilities</p>
+    </div>
+
+    <h3>External Websites</h3>
+    <div class="component-description">
+        <p>Sources of content to archive</p>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</body>
+</html>

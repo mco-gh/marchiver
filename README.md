@@ -8,6 +8,8 @@ A personal knowledge archiving and retrieval system, inspired by the Memex, that
 
 ### Architecture Documentation
 
+<img src="marchiver_architecture.png" alt="Marchiver Architecture Diagram" width="80%" />
+
 Comprehensive architecture documentation is available in the [arch](./arch) directory:
 
 - [Architecture Summary](./arch/marchiver_architecture_summary.md): A comprehensive overview of the entire system
